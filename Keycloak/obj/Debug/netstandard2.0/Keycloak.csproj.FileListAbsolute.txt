@@ -1,9 +1,0 @@
-D:\Code\Keycloak\Keycloak\bin\Debug\netstandard2.0\Keycloak.deps.json
-D:\Code\Keycloak\Keycloak\bin\Debug\netstandard2.0\Keycloak.dll
-D:\Code\Keycloak\Keycloak\bin\Debug\netstandard2.0\Keycloak.pdb
-D:\Code\Keycloak\Keycloak\obj\Debug\netstandard2.0\Keycloak.csprojAssemblyReference.cache
-D:\Code\Keycloak\Keycloak\obj\Debug\netstandard2.0\Keycloak.AssemblyInfoInputs.cache
-D:\Code\Keycloak\Keycloak\obj\Debug\netstandard2.0\Keycloak.AssemblyInfo.cs
-D:\Code\Keycloak\Keycloak\obj\Debug\netstandard2.0\Keycloak.dll
-D:\Code\Keycloak\Keycloak\obj\Debug\netstandard2.0\Keycloak.pdb
-D:\Code\Keycloak\Keycloak\obj\Debug\netstandard2.0\Keycloak.csproj.CoreCompileInputs.cache
