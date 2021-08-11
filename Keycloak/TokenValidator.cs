@@ -9,16 +9,42 @@ namespace Keycloak
     {        
          public static bool ValidateToken(TokenValidationParameters parameters)
         {
-            string header = "";
-            string payload = "";
-            string signature = "";
+            if (!CheckFormat(parameters.BearerToken))
+            {
+                return false;
+            }
 
-            parseToken(parameters.BearerToken, out header, out payload, out signature);
+            return CheckSignature(parameters.Keys, parameters.BearerToken);
+        }
+
+        public static bool CheckFormat(string token)
+        {
+            return token.Split('.').Length == 3;
+        }
+
+        public static bool CheckSignature(RealmKeys keys, string token)
+        {
+            string header;
+            string payload;
+            string signature;
+
+            parseToken(token, out header, out payload, out signature);
 
             var hashedPayload = CalculateHash(header, payload);
             var signatureBytes = prepSignature(signature);
 
-            return CheckSignature(parameters.Keys, hashedPayload, signatureBytes);
+            using (RSACryptoServiceProvider rsa = new RSACryptoServiceProvider())
+            {
+                RSAParameters keyParams = new RSAParameters
+                {
+                    Modulus = prepSignature(keys.Keys[0].Modulus),
+                    Exponent = prepSignature(keys.Keys[0].Exponent)
+                };
+
+                rsa.ImportParameters(keyParams);
+                return rsa.VerifyHash(hashedPayload, signatureBytes, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            }
+
         }
 
         private static void parseToken(string accessToken, out string header, out string payload, out string signature)
@@ -57,21 +83,7 @@ namespace Keycloak
             return hashedResult;
         }
 
-        private static bool CheckSignature(RealmKeys keys, byte[] payload, byte[] signature)
-        {
-            using (RSACryptoServiceProvider rsa = new RSACryptoServiceProvider())
-            {
-                RSAParameters keyParams = new RSAParameters
-                {
-                    Modulus = prepSignature(keys.Keys[0].Modulus),
-                    Exponent = prepSignature(keys.Keys[0].Exponent)
-                };
 
-                rsa.ImportParameters(keyParams);
-                return rsa.VerifyHash(payload, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-            }
-
-        }
     }
 }
 
