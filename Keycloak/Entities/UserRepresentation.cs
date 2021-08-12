@@ -16,7 +16,7 @@ namespace Keycloak.Entities
         [JsonProperty("email")]
         public string EmailAddress { get; set; }
 
-        [JsonProperty("emailverified")]
+        [JsonProperty("emailVerified")]
         public bool EmailVerified { get; set; }
 
         [JsonProperty("enabled")]
