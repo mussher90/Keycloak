@@ -5,7 +5,12 @@ VisualStudioVersion = 16.0.30413.136
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Keycloak", "Keycloak\Keycloak.csproj", "{11359E2D-0980-4D86-AFFB-35FDCFB2ADE1}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Keycloak.Test", "Keycloak.Test\Keycloak.Test.csproj", "{239152A6-6EEB-4174-B0F9-CCBE80CA4A06}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Keycloak.Test", "Keycloak.Test\Keycloak.Test.csproj", "{239152A6-6EEB-4174-B0F9-CCBE80CA4A06}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{5519F6A8-B2C2-4143-B3B8-70154FBF1571}"
+	ProjectSection(SolutionItems) = preProject
+		SendGridAPIKey.txt = SendGridAPIKey.txt
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

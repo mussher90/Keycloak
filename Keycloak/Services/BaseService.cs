@@ -1,27 +1,30 @@
-﻿using Keycloak.Entities;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
+using System;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Keycloak.Clients
+namespace Keycloak.Services
 {
-    public class BaseClient
+    public class BaseService
     {
-        protected string BaseURl;
+        protected Uri _baseUri;
 
-        private HttpClient _client;
+        protected HttpClient _client;
 
-        public BaseClient()
+
+        public BaseService(HttpClient client, Uri baseUri)
         {
-            _client = new HttpClient();
+            _client = client;
+            _baseUri = baseUri;
         }
+
         protected async Task<string> GetAsync(string EndPoint)
         {
             string result = null;
 
-            HttpResponseMessage res = await _client.GetAsync(BaseURl + EndPoint);
+            HttpResponseMessage res = await _client.GetAsync(_baseUri + EndPoint);
 
             if (res.IsSuccessStatusCode)
             {
@@ -35,7 +38,7 @@ namespace Keycloak.Clients
         {
             string result = null;
 
-            HttpResponseMessage res = await _client.PostAsync(BaseURl + EndPoint, content);
+            HttpResponseMessage res = await _client.PostAsync(_baseUri + EndPoint, content);
 
             if (res.IsSuccessStatusCode)
             {

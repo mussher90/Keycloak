@@ -1,11 +1,25 @@
-﻿namespace Keycloak.Entities
+﻿using Newtonsoft.Json;
+
+namespace Keycloak.Entities
 {
     public class UserRepresentation
     {
-        public string firstName { get; set; }
+        [JsonProperty("firstName")]
+        public string FirstName { get; set; }
 
-        public string lastName { get; set; }
+        [JsonProperty("lastName")]
+        public string LastName { get; set; }
 
-        public string username { get; set; }
+        [JsonProperty("username")]
+        public string UserName { get; set; }
+
+        [JsonProperty("email")]
+        public string EmailAddress { get; set; }
+
+        [JsonProperty("emailverified")]
+        public bool EmailVerified { get; set; }
+
+        [JsonProperty("enabled")]
+        public bool Enabled { get; set; }
     }
 }
