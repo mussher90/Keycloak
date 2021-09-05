@@ -1,4 +1,5 @@
 ﻿using Keycloak.Entities;
+using System;
 using System.Security.Cryptography;
 using Xunit;
 
@@ -36,32 +37,58 @@ namespace Keycloak.Test
         [Fact]
         public void Should_Reject_Incorrect_Client()
         {
+            AccessToken testClientToken = new AccessToken { AuthorizingParty = "Blah" };
 
+            Assert.False(TokenValidator.CheckClient(testClientToken, "NotBlah"));
+        }
+
+        [Fact]
+        public void Should_Accept_Correct_Client()
+        {
+            AccessToken testClientToken = new AccessToken { AuthorizingParty = "Blah" };
+
+            Assert.True(TokenValidator.CheckClient(testClientToken, "Blah"));
         }
 
         [Fact]
         public void Should_Reject_Incorrect_Issuer()
         {
+            AccessToken testClientToken = new AccessToken { Issuer = "Blah" };
 
+            Assert.False(TokenValidator.CheckIssuer(testClientToken, "NotBlah"));
+        }
+
+        [Fact]
+        public void Should_Accept_Valid_Issuer()
+        {
+            AccessToken testClientToken = new AccessToken { Issuer = "Blah" };
+
+            Assert.True(TokenValidator.CheckIssuer(testClientToken, "Blah"));
         }
 
         [Fact]
         public void Should_Reject_Expired_Token()
         {
+            var oneHourExpired = (long)(DateTime.UtcNow.AddSeconds(-3600) - new DateTime(1970, 1, 1, 0, 0, 0)).TotalSeconds;
+            Assert.False(TokenValidator.CheckExpiration(new AccessToken { Expiry = oneHourExpired }));
+        }
 
+        [Fact]
+        public void Should_Accept_Unexpired_Token()
+        {
+            var validExpiry = (long)(DateTime.UtcNow.AddSeconds(3600) - new DateTime(1970, 1, 1, 0, 0, 0)).TotalSeconds;
+            Assert.True(TokenValidator.CheckExpiration(new AccessToken { Expiry = validExpiry }));
         }
 
         [Fact]
         public void Should_Pass_Valid_Signature()
         {
+            Token token = new Token("eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJFUV94VHRfYjVNUzUyWmRCT3NwS2t5S3RSanRKbjctNHFtVmR6c0ZBSl9BIn0.eyJleHAiOjE2MzA4NzY5NzAsImlhdCI6MTYzMDg3NjY3MCwiYXV0aF90aW1lIjoxNjMwODc2NjcwLCJqdGkiOiJjN2NiMmQxNy1iNmFjLTQwNmEtOTJkNS0wNmFkNmI1YzE3ZTAiLCJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjgwODAvYXV0aC9yZWFsbXMvQmxvZyIsImF1ZCI6ImFjY291bnQiLCJzdWIiOiJlN2VlMGZmZS01ZGIxLTQwNjItOWQwNy05ODQyODA1YjFkNmMiLCJ0eXAiOiJCZWFyZXIiLCJhenAiOiJibG9nRkUiLCJub25jZSI6IjA4MGRkNjViLTRhYTctNGUzMS1hYWYzLWJlNjEyZWJkYmNmZCIsInNlc3Npb25fc3RhdGUiOiJmZDY2ZTU5ZC02M2I1LTRlM2EtYWYyYS0zNTc0ZGIwMTcxNDgiLCJhY3IiOiIxIiwiYWxsb3dlZC1vcmlnaW5zIjpbImh0dHA6Ly9sb2NhbGhvc3Q6MzAwMCJdLCJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsib2ZmbGluZV9hY2Nlc3MiLCJ1bWFfYXV0aG9yaXphdGlvbiIsImRlZmF1bHQtcm9sZXMtYmxvZyJdfSwicmVzb3VyY2VfYWNjZXNzIjp7ImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sInNjb3BlIjoib3BlbmlkIGVtYWlsIHByb2ZpbGUiLCJzaWQiOiJmZDY2ZTU5ZC02M2I1LTRlM2EtYWYyYS0zNTc0ZGIwMTcxNDgiLCJlbWFpbF92ZXJpZmllZCI6ZmFsc2UsIm5hbWUiOiJNYXR0aGV3IFVzc2hlciIsInByZWZlcnJlZF91c2VybmFtZSI6Im1hdHVzcyIsImdpdmVuX25hbWUiOiJNYXR0aGV3IiwiZmFtaWx5X25hbWUiOiJVc3NoZXIiLCJlbWFpbCI6Im11c3NoZXI5MEBnbWFpbC5jb20ifQ.rJ91d6-cj1fG-PTJSFn0I3tmaowvjJ-3pJyZL1PBnFRWHTTEPCa3bf9ifNIsjBkWwp30vty1U-0mTspEZZcSmG8WHqHj8dVnc8TrsdDsmFkpRlTIO3f3E8vI1xaIfx5hfvgMibo1yCTjVbNS48OStaWj2HTojQzEl3sinlBAfJSLEaYswBZ65xooaU5tOed-6NLghiPg-LkoNya7-V937AfmqzMmJbrjPNg2a6M0UavBfhrUoCQLM8DasKFC3UJ6tjZ1j1GEh6x713NY8Z71YKdBHM9Hd5yxm_b1o6PrZViN-k1I8Y-feS-ZVSKhMCX3HX_f1WUunEWbt4K4d6vVDQ");
             Key signingKey = new Key
             {
                 Modulus = "2gwI-AjLH2lp7036yVxInnns0gxTxIDEdfWsbbhScZiQzX-Jqxsgnq0zde874uBFdANf1ufr9g0poMYp6EO6YJMQdUO0m2vDSswiqEW58FtMyjWD7iL7RdVQlitXuP4ab_wdlhP55cekyrdfgTyhRPHasbwRW2HfT3ZcA7M720oo3uP4X2a0YEsvIfa9XsXdTugzS4GjafbKTyf1U8HcKYdJJXgf0UU-RziXvio4HXd7hC1kSedgMusvT_0YKIWvmMCAIdsaZdgsF5iouU8ZvxrVx-guJlIgQ6d53lPfKJz-2KEcG-O_yIdmUre68kLdbtdeCbJdXnxT3_aPGDBNvw",
                 Exponent = "AQAB"
             };
-
-            Token token = new Token("eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJFUV94VHRfYjVNUzUyWmRCT3NwS2t5S3RSanRKbjctNHFtVmR6c0ZBSl9BIn0.eyJleHAiOjE2MzA4NzY5NzAsImlhdCI6MTYzMDg3NjY3MCwiYXV0aF90aW1lIjoxNjMwODc2NjcwLCJqdGkiOiJjN2NiMmQxNy1iNmFjLTQwNmEtOTJkNS0wNmFkNmI1YzE3ZTAiLCJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjgwODAvYXV0aC9yZWFsbXMvQmxvZyIsImF1ZCI6ImFjY291bnQiLCJzdWIiOiJlN2VlMGZmZS01ZGIxLTQwNjItOWQwNy05ODQyODA1YjFkNmMiLCJ0eXAiOiJCZWFyZXIiLCJhenAiOiJibG9nRkUiLCJub25jZSI6IjA4MGRkNjViLTRhYTctNGUzMS1hYWYzLWJlNjEyZWJkYmNmZCIsInNlc3Npb25fc3RhdGUiOiJmZDY2ZTU5ZC02M2I1LTRlM2EtYWYyYS0zNTc0ZGIwMTcxNDgiLCJhY3IiOiIxIiwiYWxsb3dlZC1vcmlnaW5zIjpbImh0dHA6Ly9sb2NhbGhvc3Q6MzAwMCJdLCJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsib2ZmbGluZV9hY2Nlc3MiLCJ1bWFfYXV0aG9yaXphdGlvbiIsImRlZmF1bHQtcm9sZXMtYmxvZyJdfSwicmVzb3VyY2VfYWNjZXNzIjp7ImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sInNjb3BlIjoib3BlbmlkIGVtYWlsIHByb2ZpbGUiLCJzaWQiOiJmZDY2ZTU5ZC02M2I1LTRlM2EtYWYyYS0zNTc0ZGIwMTcxNDgiLCJlbWFpbF92ZXJpZmllZCI6ZmFsc2UsIm5hbWUiOiJNYXR0aGV3IFVzc2hlciIsInByZWZlcnJlZF91c2VybmFtZSI6Im1hdHVzcyIsImdpdmVuX25hbWUiOiJNYXR0aGV3IiwiZmFtaWx5X25hbWUiOiJVc3NoZXIiLCJlbWFpbCI6Im11c3NoZXI5MEBnbWFpbC5jb20ifQ.rJ91d6-cj1fG-PTJSFn0I3tmaowvjJ-3pJyZL1PBnFRWHTTEPCa3bf9ifNIsjBkWwp30vty1U-0mTspEZZcSmG8WHqHj8dVnc8TrsdDsmFkpRlTIO3f3E8vI1xaIfx5hfvgMibo1yCTjVbNS48OStaWj2HTojQzEl3sinlBAfJSLEaYswBZ65xooaU5tOed-6NLghiPg-LkoNya7-V937AfmqzMmJbrjPNg2a6M0UavBfhrUoCQLM8DasKFC3UJ6tjZ1j1GEh6x713NY8Z71YKdBHM9Hd5yxm_b1o6PrZViN-k1I8Y-feS-ZVSKhMCX3HX_f1WUunEWbt4K4d6vVDQ");
-
             Assert.True(TokenValidator.CheckSignature(signingKey, token, HashAlgorithmName.SHA256));
         }
     }

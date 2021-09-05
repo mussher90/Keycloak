@@ -80,7 +80,7 @@ namespace Keycloak
             DateTime dateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
             dateTime = dateTime.AddSeconds(token.Expiry).ToLocalTime();
 
-            return dateTime < DateTime.Now;
+            return dateTime >= DateTime.Now;
         }
 
         public static bool CheckSignature(Key signingKey, Token token, HashAlgorithmName algorithmName)

@@ -39,7 +39,7 @@ namespace Keycloak.Entities
             set
             {
                 Payload = DecodeToken(value);
-                _encodedHeader = value;
+                _encodedPayload = value;
             }
         }
 
