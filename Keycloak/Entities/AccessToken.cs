@@ -42,7 +42,7 @@ namespace Keycloak.Entities
         public string Acr { get; set; }
 
         [JsonProperty("allowed-origins")]
-        public string AllowedOrigins { get; set; }
+        public List<string> AllowedOrigins { get; set; }
 
         [JsonProperty("realm_access")]
         public RealmRoles RealmAccess { get; set; }
