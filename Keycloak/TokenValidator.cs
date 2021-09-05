@@ -11,12 +11,45 @@ namespace Keycloak
     {        
          public static bool ValidateToken(TokenValidationParameters parameters)
         {
-            if (!CheckFormat(parameters.BearerToken))
+            var token = parameters.BearerToken;
+            var keys = parameters.Keys;
+            var client = parameters.Client;
+            var issuer = parameters.Issuer;
+            Token tokenObj;
+
+            if (!CheckFormat(token))
             {
                 return false;
             }
 
-            return CheckSignature(parameters.Keys, parameters.BearerToken);
+            tokenObj = new Token(token);
+
+            if (!CheckHashAlgorithm(tokenObj.Header, out HashAlgorithmName? hashAlgorithm))
+            {
+                return false;
+            }
+
+            if(!CheckIssuer(tokenObj.Payload, issuer))
+            {
+                return false;
+            }
+
+            if (!CheckClient(tokenObj.Payload, client))
+            {
+                return false;
+            }
+
+            if (!CheckExpiration(tokenObj.Payload))
+            {
+                return false;
+            }
+
+            var signingKey = keys.Keys
+                            .Select(x => x)
+                            .Where(x => x.KeyId == tokenObj.Header.KeyId)
+                            .FirstOrDefault();
+
+            return CheckSignature(signingKey, tokenObj, (HashAlgorithmName)hashAlgorithm);
         }
 
         public static bool CheckFormat(string token)
@@ -24,61 +57,61 @@ namespace Keycloak
             return token.Split('.').Length == 3;
         }
 
-        public static bool CheckSignature(RealmKeys keys, string token)
+        public static bool CheckHashAlgorithm(Header header, out HashAlgorithmName? hashAlgorithm)
         {
-            string header;
-            string payload;
-            string signature;
+            hashAlgorithm = GetHashAlgorithm(header);
 
-            parseToken(token, out header, out payload, out signature);
+            return hashAlgorithm != null;
+        }
 
-            Header headerObj = JsonConvert.DeserializeObject<Header>(Encoding.ASCII.GetString(prepSignature(header)));
+        public static bool CheckIssuer(AccessToken token, string Issuer)
+        {
+            return token.Issuer == Issuer;
+        }
 
-            var signingKey = keys.Keys
-                            .Select(x => x)
-                            .Where(x => x.KeyId == headerObj.KeyId)
-                            .FirstOrDefault();
+        public static bool CheckClient(AccessToken token, string Client)
+        {
+            return token.AuthorizingParty == Client;
+        }
 
-            var hashedPayload = CalculateHash(header, payload);
-            var signatureBytes = prepSignature(signature);
+        public static bool CheckExpiration(AccessToken token)
+        {
+            // Unix timestamp is seconds past epoch
+            DateTime dateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
+            dateTime = dateTime.AddSeconds(token.Expiry).ToLocalTime();
+
+            return dateTime >= DateTime.Now;
+        }
+
+        public static bool CheckSignature(Key signingKey, Token token, HashAlgorithmName algorithmName)
+        {
+            var hashedPayload = CalculateHash(token.EncodedHeader, token.EncodedPayload);
+            var signatureBytes = base64Decode(token.Signature);
 
             using (RSACryptoServiceProvider rsa = new RSACryptoServiceProvider())
             {
                 RSAParameters keyParams = new RSAParameters
                 {
-                    Modulus = prepSignature(signingKey.Modulus),
-                    Exponent = prepSignature(signingKey.Exponent)
+                    Modulus = base64Decode(signingKey.Modulus),
+                    Exponent = base64Decode(signingKey.Exponent)
                 };
 
                 rsa.ImportParameters(keyParams);
-                return rsa.VerifyHash(hashedPayload, signatureBytes, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+                return rsa.VerifyHash(hashedPayload, signatureBytes, algorithmName, RSASignaturePadding.Pkcs1);
             }
-
         }
 
-        private static void parseToken(string accessToken, out string header, out string payload, out string signature)
+        public static byte[] base64Decode(string encodedString) 
         {
 
-            var accessTokenArray = accessToken.Split('.');
+            encodedString = encodedString.Replace('_', '/').Replace('-', '+');
 
-            header = accessTokenArray[0];
-
-            payload = accessTokenArray[1];
-
-            signature = accessTokenArray[2];
-        }
-
-        private static byte[] prepSignature(string signature)
-        {
-
-            signature = signature.Replace('_', '/').Replace('-', '+');
-
-            while (signature.Length % 4 != 0)
+            while (encodedString.Length % 4 != 0)
             {
-                signature += '=';
+                encodedString += '=';
             }
 
-            return Convert.FromBase64String(signature);
+            return Convert.FromBase64String(encodedString);
         }
 
         private static byte[] CalculateHash(string header, string payload)
@@ -92,6 +125,16 @@ namespace Keycloak
             return hashedResult;
         }
 
+        private static HashAlgorithmName? GetHashAlgorithm(Header header)
+        {
+            switch (header.Algorithm)
+            {
+                case "RS256":
+                    return HashAlgorithmName.SHA256;
+                default:
+                    return null;
+            }
+        }
 
     }
 }
