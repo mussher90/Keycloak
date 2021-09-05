@@ -1,5 +1,7 @@
 ﻿using Keycloak.Entities;
+using Newtonsoft.Json;
 using System;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -30,6 +32,13 @@ namespace Keycloak
 
             parseToken(token, out header, out payload, out signature);
 
+            Header headerObj = JsonConvert.DeserializeObject<Header>(Encoding.ASCII.GetString(prepSignature(header)));
+
+            var signingKey = keys.Keys
+                            .Select(x => x)
+                            .Where(x => x.KeyId == headerObj.KeyId)
+                            .FirstOrDefault();
+
             var hashedPayload = CalculateHash(header, payload);
             var signatureBytes = prepSignature(signature);
 
@@ -37,8 +46,8 @@ namespace Keycloak
             {
                 RSAParameters keyParams = new RSAParameters
                 {
-                    Modulus = prepSignature(keys.Keys[0].Modulus),
-                    Exponent = prepSignature(keys.Keys[0].Exponent)
+                    Modulus = prepSignature(signingKey.Modulus),
+                    Exponent = prepSignature(signingKey.Exponent)
                 };
 
                 rsa.ImportParameters(keyParams);
