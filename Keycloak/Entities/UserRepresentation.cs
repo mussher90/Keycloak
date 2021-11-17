@@ -21,5 +21,9 @@ namespace Keycloak.Entities
 
         [JsonProperty("enabled")]
         public bool Enabled { get; set; }
+
+        [JsonProperty("credentials")]
+
+        public CredentialRepresentation[] Credentials; 
     }
 }

@@ -6,23 +6,23 @@ using System.Threading.Tasks;
 
 namespace Keycloak.Services
 {
-    public class KeyService : BaseService
+    public static class KeyService
     {
-        private readonly string EndPoint = "/protocol/openid-connect/certs";
-
-        public KeyService(HttpClient client, Uri baseUri) : base(client, baseUri)
+        public static async Task<RealmKeys> GetKeys(IKeycloakClient client)
         {
-            _baseUri = baseUri;
-            _client = client;
-        }
+            var keyEndpoint = $"auth/realms/{client.Realm}/protocol/openid-connect/certs";
 
-        public async Task<RealmKeys> GetKeys()
-        {
-            var response = await _client.GetAsync(_baseUri + EndPoint);
+            var message = new HttpRequestMessage
+            {
+                Method = HttpMethod.Get,
+                RequestUri = new Uri(keyEndpoint, UriKind.Relative)
+            };
+
+            var response = await client.Send(message, false).ConfigureAwait(false);
 
             if (response.IsSuccessStatusCode)
             {
-                var keys = await response.Content.ReadAsStringAsync();
+                var keys = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 
                 return JsonConvert.DeserializeObject<RealmKeys>(keys);
             }

@@ -3,46 +3,14 @@ using System.Collections.Generic;
 
 namespace Keycloak.Entities
 {
-    public class AccessToken
+    public class AccessTokenPayload : Payload
     {
-        [JsonProperty("exp")]
-        public long Expiry { get; set; }
-
-        [JsonProperty("iat")]
-        public long IssuedAt { get; set; }
-
+       
         [JsonProperty("auth_time")]
         public long AuthorizationTime { get; set; }
 
-        [JsonProperty("jti")]
-        public string Jti { get; set; }
-
-        [JsonProperty("iss")]
-        public string Issuer { get; set; }
-
-        [JsonProperty("aud")]
-        public string Audience { get; set; }
-
-        [JsonProperty("sub")]
-        public string KeycloakUserId { get; set; }
-
-        [JsonProperty("typ")]
-        public string TokenType { get; set; }
-
-        [JsonProperty("azp")]
-        public string AuthorizingParty { get; set; }
-
         [JsonProperty("nonce")]
         public string Nonce { get; set; }
-
-        [JsonProperty("session_state")]
-        public string SessionId { get; set; }
-
-        [JsonProperty("acr")]
-        public string Acr { get; set; }
-
-        [JsonProperty("allowed-origins")]
-        public List<string> AllowedOrigins { get; set; }
 
         [JsonProperty("realm_access")]
         public RealmRoles RealmAccess { get; set; }

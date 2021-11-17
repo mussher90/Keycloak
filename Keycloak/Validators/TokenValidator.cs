@@ -1,5 +1,5 @@
 ﻿using Keycloak.Entities;
-using Newtonsoft.Json;
+using Keycloak.Enums;
 using System;
 using System.Linq;
 using System.Security.Cryptography;
@@ -9,39 +9,43 @@ namespace Keycloak
 {
     public static class TokenValidator
     {        
-         public static bool ValidateToken(TokenValidationParameters parameters)
+         public static ValidationStatusCode ValidateToken(TokenValidationParameters parameters)
         {
-            var token = parameters.BearerToken;
+            var token = parameters.Token;
             var keys = parameters.Keys;
             var client = parameters.Client;
+            var checkClient = parameters.CheckClient;
             var issuer = parameters.Issuer;
-            Token tokenObj;
+            var checkIssuer = parameters.CheckIssuer;
+            var webOrigins = parameters.WebOrigins;
+            var checkWebOrigins = parameters.CheckWebOrigins;
+            Jwt tokenObj;
 
             if (!CheckFormat(token))
             {
-                return false;
+                return ValidationStatusCode.IncorrectFormat;
             }
 
-            tokenObj = new Token(token);
+            tokenObj = new Jwt(token);
 
             if (!CheckHashAlgorithm(tokenObj.Header, out HashAlgorithmName? hashAlgorithm))
             {
-                return false;
+                return ValidationStatusCode.MissingAlgorithm;
             }
 
-            if(!CheckIssuer(tokenObj.Payload, issuer))
+            if(checkIssuer && !CheckIssuer(tokenObj.Payload, issuer))
             {
-                return false;
+                return ValidationStatusCode.IncorrectIssuer;
             }
 
-            if (!CheckClient(tokenObj.Payload, client))
+            if (checkClient && !CheckClient(tokenObj.Payload, client))
             {
-                return false;
+                return ValidationStatusCode.IncorrectClient;
             }
 
             if (!CheckExpiration(tokenObj.Payload))
             {
-                return false;
+                return ValidationStatusCode.Expired;
             }
 
             var signingKey = keys.Keys
@@ -49,7 +53,7 @@ namespace Keycloak
                             .Where(x => x.KeyId == tokenObj.Header.KeyId)
                             .FirstOrDefault();
 
-            return CheckSignature(signingKey, tokenObj, (HashAlgorithmName)hashAlgorithm);
+            return CheckSignature(signingKey, tokenObj, (HashAlgorithmName)hashAlgorithm) ? ValidationStatusCode.Ok : ValidationStatusCode.InvalidSignature;
         }
 
         public static bool CheckFormat(string token)
@@ -64,26 +68,26 @@ namespace Keycloak
             return hashAlgorithm != null;
         }
 
-        public static bool CheckIssuer(AccessToken token, string Issuer)
+        public static bool CheckIssuer(Payload payload, string Issuer)
         {
-            return token.Issuer == Issuer;
+            return payload.Issuer == Issuer;
         }
 
-        public static bool CheckClient(AccessToken token, string Client)
+        public static bool CheckClient(Payload payload, string Client)
         {
-            return token.AuthorizingParty == Client;
+            return payload.AuthorizingParty == Client;
         }
 
-        public static bool CheckExpiration(AccessToken token)
+        public static bool CheckExpiration(Payload payload)
         {
             // Unix timestamp is seconds past epoch
             DateTime dateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
-            dateTime = dateTime.AddSeconds(token.Expiry).ToLocalTime();
+            dateTime = dateTime.AddSeconds(payload.Expiry).ToLocalTime();
 
             return dateTime >= DateTime.Now;
         }
 
-        public static bool CheckSignature(Key signingKey, Token token, HashAlgorithmName algorithmName)
+        public static bool CheckSignature(Key signingKey, Jwt token, HashAlgorithmName algorithmName)
         {
             var hashedPayload = CalculateHash(token.EncodedHeader, token.EncodedPayload);
             var signatureBytes = base64Decode(token.Signature);
@@ -114,10 +118,17 @@ namespace Keycloak
             return Convert.FromBase64String(encodedString);
         }
 
+        public static string urlEncode(string encodedString)
+        {
+            return encodedString.Replace('/', '_').Replace('+', '-');
+        }
+
         private static byte[] CalculateHash(string header, string payload)
         {
             var byteArray = Encoding.UTF8.GetBytes(header + "." + payload);
             byte[] hashedResult = null;
+
+            //shouldn't assume SHA256
             using (SHA256 hasher = SHA256.Create())
             {
                 hashedResult = hasher.ComputeHash(byteArray);

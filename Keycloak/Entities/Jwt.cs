@@ -1,15 +1,14 @@
 ﻿using Newtonsoft.Json;
-using System;
 using System.Text;
 
 namespace Keycloak.Entities
 {
-    public class Token
+    public class Jwt
     {
         private string _encodedHeader;
         private string _encodedPayload;
 
-        public Token(string token)
+        public Jwt(string token)
         {
             var accessTokenArray = token.Split('.');
 
@@ -21,7 +20,7 @@ namespace Keycloak.Entities
         }
         public Header Header { get; private set; }
 
-        public AccessToken Payload { get; private set; }
+        public Payload Payload { get; private set; }
 
         public string Signature { get; }
 
@@ -49,10 +48,10 @@ namespace Keycloak.Entities
             return JsonConvert.DeserializeObject<Header>(decodedJsonHeader);
         }
 
-        public static AccessToken DecodeToken(string token)
+        public static Payload DecodeToken(string payload)
         {
-            var decodedJsonToken = Encoding.ASCII.GetString(TokenValidator.base64Decode(token));
-            return JsonConvert.DeserializeObject<AccessToken>(decodedJsonToken);
+            var decodedJsonToken = Encoding.ASCII.GetString(TokenValidator.base64Decode(payload));
+            return JsonConvert.DeserializeObject<Payload>(decodedJsonToken);
         }
     }
 }
