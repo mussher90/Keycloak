@@ -11,7 +11,7 @@ namespace Keycloak.Services
 {
     public static class UserService
     {
-        public static async Task<string> CreateUser(IKeycloakClient client, UserRepresentation userRepresentation)
+        public static async Task<string> CreateUserAsync(IKeycloakClient client, UserRepresentation userRepresentation)
         {
             var apiEndpoint = $"auth/admin/realms/{client.Realm}/users";
 
@@ -29,7 +29,7 @@ namespace Keycloak.Services
             return null;
         }
 
-        public static async Task<HttpResponseMessage> UpdateUser(IKeycloakClient client, UserRepresentation userRepresentation, string userId)
+        public static async Task<HttpResponseMessage> UpdateUserAsync(IKeycloakClient client, UserRepresentation userRepresentation, string userId)
         {
             var apiEndpoint = $"auth/admin/realms/{client.Realm}/users/{userId}";
 
@@ -40,7 +40,7 @@ namespace Keycloak.Services
             return await client.Send(message).ConfigureAwait(false);
         }
 
-        public static async Task<HttpResponseMessage> DeleteUser(IKeycloakClient client, string userId)
+        public static async Task<HttpResponseMessage> DeleteUserAsync(IKeycloakClient client, string userId)
         {
             var apiEndpoint = $"auth/admin/realms/{client.Realm}/users/{userId}";
 
@@ -49,7 +49,7 @@ namespace Keycloak.Services
             return await client.Send(message).ConfigureAwait(false);
         }
 
-        public static async Task<HttpResponseMessage> SendEmail(IKeycloakClient client, string userId, IEnumerable<RequiredActionsEnum> requiredActions)
+        public static async Task<HttpResponseMessage> SendEmailAsync(IKeycloakClient client, string userId, IEnumerable<RequiredActionsEnum> requiredActions)
         {
             var apiEndpoint = $"auth/admin/realms/{client.Realm}/users/{userId}/execute-actions-email";
 

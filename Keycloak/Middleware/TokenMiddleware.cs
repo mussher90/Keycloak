@@ -33,7 +33,7 @@ namespace Keycloak.Middleware
             var authorizationHeaders = httpContext.Request.Headers["Authorization"];
             var authenticationURI = _configuration["KeycloakServer"];
 
-            var realmKeys = GetKeys();
+            var realmKeys = GetKeys().Result;
 
             if(authorizationHeaders.Count == 1)
             {
@@ -57,14 +57,14 @@ namespace Keycloak.Middleware
 
             return _next(httpContext);
         }
-        private RealmKeys GetKeys()
+        private async Task<RealmKeys> GetKeys()
         {
             if(_cache.Get("RealmKeys") != null)
             {
                 return (RealmKeys)_cache.Get("RealmKeys");
             }
 
-            var realmKeys = KeyService.GetKeys(_client).Result;
+            var realmKeys = await KeyService.GetKeysAsync(_client);
 
             _cache.Set("RealmKeys", realmKeys);
 

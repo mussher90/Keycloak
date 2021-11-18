@@ -7,7 +7,7 @@ namespace Keycloak.Services
 {
     public static class KeyService
     {
-        public static async Task<RealmKeys> GetKeys(IKeycloakClient client)
+        public static async Task<RealmKeys> GetKeysAsync(IKeycloakClient client)
         {
             var keyEndpoint = $"auth/realms/{client.Realm}/protocol/openid-connect/certs";
 
