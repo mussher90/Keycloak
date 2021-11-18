@@ -9,6 +9,6 @@ namespace Keycloak
 
         string Realm { get;}
 
-        Task<HttpResponseMessage> Send(HttpRequestMessage message, bool requiresAccessToken);
+        Task<HttpResponseMessage> Send(HttpRequestMessage message, bool requiresAccessToken = true);
     }
 }

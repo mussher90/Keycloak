@@ -20,6 +20,16 @@ namespace Keycloak.Services
 
             return byteContent;
         }
+
+        public static HttpRequestMessage ConstructRequest(HttpMethod method, string apiEndpoint, HttpContent content = null)
+        {
+            return new HttpRequestMessage
+            {
+                Method = method,
+                RequestUri = new Uri(apiEndpoint, UriKind.Relative),
+                Content = content
+            };
+        }
     }
 }
  

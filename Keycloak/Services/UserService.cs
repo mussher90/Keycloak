@@ -17,14 +17,9 @@ namespace Keycloak.Services
 
             var byteContent = ApiHelper.FormatEntity(userRepresentation);
 
-            var message = new HttpRequestMessage
-            {
-                Method = HttpMethod.Post,
-                Content = byteContent,
-                RequestUri = new Uri(apiEndpoint, UriKind.Relative)
-            };
+            var message = ApiHelper.ConstructRequest(HttpMethod.Post, apiEndpoint, byteContent);
 
-            var response =  await client.Send(message, true).ConfigureAwait(false);
+            var response =  await client.Send(message).ConfigureAwait(false);
 
             if (response.IsSuccessStatusCode)
             {
@@ -40,50 +35,35 @@ namespace Keycloak.Services
 
             var byteContent = ApiHelper.FormatEntity(userRepresentation);
 
-            var message = new HttpRequestMessage
-            {
-                Method = HttpMethod.Put,
-                Content = byteContent,
-                RequestUri = new Uri(apiEndpoint, UriKind.Relative)
-            };
+            var message = ApiHelper.ConstructRequest(HttpMethod.Put, apiEndpoint, byteContent);
 
-            return await client.Send(message, true).ConfigureAwait(false);
+            return await client.Send(message).ConfigureAwait(false);
         }
 
         public static async Task<HttpResponseMessage> DeleteUser(IKeycloakClient client, string userId)
         {
             var apiEndpoint = $"auth/admin/realms/{client.Realm}/users/{userId}";
 
-            var message = new HttpRequestMessage
-            {
-                Method = HttpMethod.Delete,
-                RequestUri = new Uri(apiEndpoint, UriKind.Relative)
-            };
+            var message = ApiHelper.ConstructRequest(HttpMethod.Delete, apiEndpoint);
 
-            return await client.Send(message, true).ConfigureAwait(false);
+            return await client.Send(message).ConfigureAwait(false);
         }
 
         public static async Task<HttpResponseMessage> SendEmail(IKeycloakClient client, string userId, IEnumerable<RequiredActionsEnum> requiredActions)
         {
             var apiEndpoint = $"auth/admin/realms/{client.Realm}/users/{userId}/execute-actions-email";
 
-            var actionsList = from action in requiredActions
-                              select RequireActionMapper(action);
+            var actionsList = (from action in requiredActions select RequireActionMapper(action)).ToList();
 
             var byteContent = ApiHelper.FormatEntity(actionsList);
 
-            var message = new HttpRequestMessage
-            {
-                Method = HttpMethod.Put,
-                Content = byteContent,
-                RequestUri = new Uri(apiEndpoint, UriKind.Relative)
-            };
+            var message = ApiHelper.ConstructRequest(HttpMethod.Put, apiEndpoint, byteContent);
 
-            return await client.Send(message, true).ConfigureAwait(false);
+            return await client.Send(message).ConfigureAwait(false);
         }
 
 
-        public static string ExtractKeycloakUserId(Uri userEndPoint)
+        private static string ExtractKeycloakUserId(Uri userEndPoint)
         {
             return userEndPoint.Segments.Last();
         }
