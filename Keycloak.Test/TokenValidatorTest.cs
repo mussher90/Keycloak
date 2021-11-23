@@ -1,4 +1,5 @@
 ﻿using Keycloak.Entities;
+using Keycloak.Services.Keys.Entities;
 using System;
 using System.Security.Cryptography;
 using Xunit;

@@ -1,6 +1,6 @@
 ﻿using Newtonsoft.Json;
 
-namespace Keycloak.Entities
+namespace Keycloak.Services.Users.Entities
 {
     public class CredentialRepresentation
     {

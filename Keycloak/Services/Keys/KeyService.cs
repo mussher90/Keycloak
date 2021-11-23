@@ -1,9 +1,9 @@
-﻿using Keycloak.Entities;
+﻿using Keycloak.Services.Keys.Entities;
 using Newtonsoft.Json;
 using System.Net.Http;
 using System.Threading.Tasks;
 
-namespace Keycloak.Services
+namespace Keycloak.Services.Keys
 {
     public static class KeyService
     {
