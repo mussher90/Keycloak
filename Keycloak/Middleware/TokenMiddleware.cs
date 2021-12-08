@@ -1,7 +1,7 @@
 ﻿using System.Threading.Tasks;
+using Keycloak.Entities.Keys;
 using Keycloak.Enums;
 using Keycloak.Services.Keys;
-using Keycloak.Services.Keys.Entities;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Memory;

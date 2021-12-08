@@ -1,7 +1,7 @@
 ﻿using Newtonsoft.Json;
 using System;
 
-namespace Keycloak.Services.Realm.Entites
+namespace Keycloak.Entities.Realm
 {
     public class EventQuery
     {

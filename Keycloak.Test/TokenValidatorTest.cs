@@ -1,5 +1,5 @@
 ﻿using Keycloak.Entities;
-using Keycloak.Services.Keys.Entities;
+using Keycloak.Entities.Keys;
 using System;
 using System.Security.Cryptography;
 using Xunit;
@@ -90,7 +90,7 @@ namespace Keycloak.Test
                 Modulus = "2gwI-AjLH2lp7036yVxInnns0gxTxIDEdfWsbbhScZiQzX-Jqxsgnq0zde874uBFdANf1ufr9g0poMYp6EO6YJMQdUO0m2vDSswiqEW58FtMyjWD7iL7RdVQlitXuP4ab_wdlhP55cekyrdfgTyhRPHasbwRW2HfT3ZcA7M720oo3uP4X2a0YEsvIfa9XsXdTugzS4GjafbKTyf1U8HcKYdJJXgf0UU-RziXvio4HXd7hC1kSedgMusvT_0YKIWvmMCAIdsaZdgsF5iouU8ZvxrVx-guJlIgQ6d53lPfKJz-2KEcG-O_yIdmUre68kLdbtdeCbJdXnxT3_aPGDBNvw",
                 Exponent = "AQAB"
             };
-            Assert.True(TokenValidator.CheckSignature(signingKey, token, HashAlgorithmName.SHA256));
+            Assert.True(condition: TokenValidator.CheckSignature(signingKey, token, HashAlgorithmName.SHA256));
         }
     }
 }

@@ -1,7 +1,7 @@
 ﻿using Newtonsoft.Json;
 using System.Collections.Generic;
 
-namespace Keycloak.Services.Keys.Entities
+namespace Keycloak.Entities.Keys
 {
     public class Key
     {

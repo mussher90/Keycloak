@@ -1,6 +1,6 @@
 ﻿using Keycloak.Constants;
 using Keycloak.Constants.Enums;
-using Keycloak.Services.Users.Entities;
+using Keycloak.Entities.Users;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;

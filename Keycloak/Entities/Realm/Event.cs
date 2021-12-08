@@ -1,4 +1,4 @@
-﻿namespace Keycloak.Services.Realm.Entites
+﻿namespace Keycloak.Entities.Realm
 {
     public class Event
     {

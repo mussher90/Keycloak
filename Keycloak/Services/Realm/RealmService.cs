@@ -1,4 +1,4 @@
-﻿using Keycloak.Services.Realm.Entites;
+﻿using Keycloak.Entities.Realm;
 using Newtonsoft.Json;
 using System.Collections.Generic;
 using System.IO;

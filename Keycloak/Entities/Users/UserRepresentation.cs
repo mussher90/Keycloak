@@ -1,6 +1,6 @@
 ﻿using Newtonsoft.Json;
 
-namespace Keycloak.Services.Users.Entities
+namespace Keycloak.Entities.Users
 {
     public class UserRepresentation
     {

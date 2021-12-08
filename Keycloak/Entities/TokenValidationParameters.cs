@@ -1,4 +1,4 @@
-﻿using Keycloak.Services.Keys.Entities;
+﻿using Keycloak.Entities.Keys;
 using System.Collections.Generic;
 
 namespace Keycloak

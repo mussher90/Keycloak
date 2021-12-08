@@ -1,6 +1,6 @@
 ﻿using Keycloak.Entities;
+using Keycloak.Entities.Keys;
 using Keycloak.Enums;
-using Keycloak.Services.Keys.Entities;
 using System;
 using System.Linq;
 using System.Security.Cryptography;
