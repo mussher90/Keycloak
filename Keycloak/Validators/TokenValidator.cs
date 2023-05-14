@@ -5,7 +5,7 @@ using System;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
-
+//There's definitely better ways of doing this.  I believe there are .NET packages for JWT validation.  This is largely a 
 namespace Keycloak
 {
     public static class TokenValidator
