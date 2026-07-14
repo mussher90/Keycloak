@@ -1,7 +1,7 @@
 ﻿using Keycloak.Entities.Keys;
 using System.Collections.Generic;
 
-namespace Keycloak
+namespace Keycloak.Entities
 {
     public class TokenValidationParameters
     {
@@ -15,7 +15,7 @@ namespace Keycloak
 
         public string Issuer
         {
-            get { return _issuer; }
+            get => _issuer;
             set
             {
                 _issuer = value;
@@ -25,7 +25,7 @@ namespace Keycloak
 
         public string Client
         {
-            get { return _client; }
+            get => _client;
             set
             {
                 _client = value;
@@ -35,7 +35,7 @@ namespace Keycloak
 
         public IEnumerable<string> WebOrigins
         {
-            get { return _webOrigins; }
+            get => _webOrigins;
             set
             {
                 _webOrigins = value;
@@ -44,8 +44,14 @@ namespace Keycloak
         }
 
         public bool CheckIssuer { get; private set; }
+
         public bool CheckClient { get; private set; }
+
         public bool CheckWebOrigins { get; private set; }
+
+        /// <summary>
+        /// Clock skew in seconds applied when validating token expiry. Defaults to 0.
+        /// </summary>
         public int ServerSkew { get; set; }
     }
 }

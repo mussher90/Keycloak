@@ -30,11 +30,12 @@ namespace Keycloak.Entities.Keys
         public string Thumbprint { get; set; }
 
         [JsonProperty("x5t#S256")]
-        public string OtherThing { get; set; }
+        public string Sha256Thumbprint { get; set; }
     }
 
     public class RealmKeys
     {
+        [JsonProperty("keys")]
         public List<Key> Keys { get; set; }
     }
 }

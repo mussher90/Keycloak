@@ -1,18 +1,16 @@
-﻿using Keycloak.Entities;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using System;
-using System.Collections.Generic;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 
-namespace Keycloak.Services
+namespace Keycloak.Helpers
 {
     public static class ApiHelper
     {
-        public static ByteArrayContent FormatEntity(object KeycloakEntity)
+        public static ByteArrayContent FormatEntity(object keycloakEntity)
         {
-            var entityJson = JsonConvert.SerializeObject(KeycloakEntity);
+            var entityJson = JsonConvert.SerializeObject(keycloakEntity);
             var buffer = Encoding.UTF8.GetBytes(entityJson);
             var byteContent = new ByteArrayContent(buffer);
 
@@ -27,9 +25,8 @@ namespace Keycloak.Services
             {
                 Method = method,
                 RequestUri = new Uri(apiEndpoint, UriKind.Relative),
-                Content = content
+                Content = content,
             };
         }
     }
 }
- 

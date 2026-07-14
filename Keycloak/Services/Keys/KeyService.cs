@@ -1,28 +1,30 @@
 ﻿using Keycloak.Entities.Keys;
-using Newtonsoft.Json;
+using Keycloak.Helpers;
 using System.Net.Http;
 using System.Threading.Tasks;
 
 namespace Keycloak.Services.Keys
 {
-    public static class KeyService
+    public interface IKeyService
     {
-        public static async Task<RealmKeys> GetKeysAsync(IKeycloakClient client)
-        {
-            var keyEndpoint = $"auth/realms/{client.Realm}/protocol/openid-connect/certs";
+        Task<RealmKeys> GetKeysAsync();
+    }
 
+    public class KeyService : IKeyService
+    {
+        private readonly IKeycloakClient _client;
+
+        public KeyService(IKeycloakClient client)
+        {
+            _client = client;
+        }
+
+        public Task<RealmKeys> GetKeysAsync()
+        {
+            var keyEndpoint = KeycloakUriHelper.GetCertsEndpoint(_client.Realm);
             var message = ApiHelper.ConstructRequest(HttpMethod.Get, keyEndpoint);
 
-            var response = await client.Send(message, false).ConfigureAwait(false);
-
-            if (response.IsSuccessStatusCode)
-            {
-                var keys = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-
-                return JsonConvert.DeserializeObject<RealmKeys>(keys);
-            }
-
-            return null;
+            return KeycloakHttpHelper.SendAndDeserializeAsync<RealmKeys>(_client, message, requiresAccessToken: false);
         }
     }
 }

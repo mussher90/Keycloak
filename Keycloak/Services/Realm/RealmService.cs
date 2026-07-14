@@ -1,32 +1,32 @@
 ﻿using Keycloak.Entities.Realm;
-using Newtonsoft.Json;
+using Keycloak.Helpers;
 using System.Collections.Generic;
-using System.IO;
 using System.Net.Http;
 using System.Threading.Tasks;
 
 namespace Keycloak.Services
 {
-    public static class RealmService
+    public interface IRealmService
     {
-        public static async Task<List<Event>> GetRealmEventsAsync(IKeycloakClient client, EventQuery eventQuery)
+        Task<List<Event>> GetRealmEventsAsync(EventQuery eventQuery);
+    }
+
+    public class RealmService : IRealmService
+    {
+        private readonly IKeycloakClient _client;
+
+        public RealmService(IKeycloakClient client)
+        {
+            _client = client;
+        }
+
+        public Task<List<Event>> GetRealmEventsAsync(EventQuery eventQuery)
         {
             var queryParameters = eventQuery.GetQueryString();
-            var apiEndpoint = $"auth/admin/realms/{client.Realm}/events{queryParameters}";
-
+            var apiEndpoint = $"{KeycloakUriHelper.GetAdminRealmPath(_client.Realm)}/events{queryParameters}";
             var message = ApiHelper.ConstructRequest(HttpMethod.Get, apiEndpoint);
 
-            var response = await client.Send(message, true);
-
-            if (response.IsSuccessStatusCode)
-            {
-                var eventData = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
-
-                using var reader = new StreamReader(eventData);
-                return JsonConvert.DeserializeObject<List<Event>>(reader.ReadToEnd());
-            }
-
-            return null;
+            return KeycloakHttpHelper.SendAndDeserializeAsync<List<Event>>(_client, message);
         }
     }
 }

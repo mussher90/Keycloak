@@ -1,5 +1,9 @@
-﻿using Keycloak.Entities;
+﻿using Keycloak.Configuration;
+using Keycloak.Entities;
+using Keycloak.Helpers;
+using Keycloak.Validators;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -11,64 +15,88 @@ namespace Keycloak
 {
     public class KeycloakClient : IKeycloakClient
     {
-        private readonly string ClientSecret;
-        private readonly string ClientId;
-        private OidcToken Token;
+        private readonly HttpClient _httpClient;
+        private readonly string _clientSecret;
+        private readonly string _clientId;
+        private OidcToken _token;
+
+        public KeycloakClient(IOptions<KeycloakOptions> options)
+            : this(options?.Value ?? throw new ArgumentNullException(nameof(options)))
+        {
+        }
+
+        public KeycloakClient(KeycloakOptions options)
+        {
+            if (options == null)
+            {
+                throw new ArgumentNullException(nameof(options));
+            }
+
+            options.Validate();
+
+            _httpClient = new HttpClient { BaseAddress = new Uri(options.ServerUrl) };
+            ServerUrl = options.ServerUrl;
+            Realm = options.Realm;
+            _clientId = options.ClientId;
+            _clientSecret = options.ClientSecret;
+        }
 
         public KeycloakClient(IConfiguration configuration)
+            : this(KeycloakOptionsBinder.Bind(configuration))
         {
-            Client = new HttpClient { BaseAddress = new Uri(configuration["KeycloakServer"]) };
-            Realm = configuration["Realm"];
-            ClientId = configuration["ClientId"];
-            ClientSecret = configuration["ClientSecret"];
         }
 
-        public KeycloakClient(Uri host, string realm, string clientID, string clientSecret)
+        public KeycloakClient(Uri host, string realm, string clientId, string clientSecret)
+            : this(new KeycloakOptions
+            {
+                ServerUrl = host.ToString(),
+                Realm = realm,
+                ClientId = clientId,
+                ClientSecret = clientSecret,
+            })
         {
-            Client = new HttpClient { BaseAddress = host };
-            Realm = realm;
-            ClientId = clientID;
-            ClientSecret = clientSecret;
         }
 
-        public HttpClient Client { get; }
         public string Realm { get; }
 
-        public async Task<HttpResponseMessage> Send(HttpRequestMessage message, bool requiresAccessToken)
+        public string ServerUrl { get; }
+
+        public async Task<HttpResponseMessage> Send(HttpRequestMessage message, bool requiresAccessToken = true)
         {
             if (requiresAccessToken)
             {
                 await SetToken().ConfigureAwait(false);
 
-                message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", Token.AccessToken);
+                message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _token.AccessToken);
             }
 
-            return await Client.SendAsync(message).ConfigureAwait(false);
+            return await _httpClient.SendAsync(message).ConfigureAwait(false);
         }
 
         private bool ValidToken()
         {
-            if (Token == null)
+            if (_token == null)
             {
                 return false;
             }
 
-            var _jwt = new Jwt(Token.AccessToken);
+            var jwt = new Jwt(_token.AccessToken);
 
-            return TokenValidator.CheckExpiration(_jwt.Payload);
+            return TokenValidator.CheckExpiration(jwt.Payload);
         }
 
         private async Task SetToken()
         {
             if (!ValidToken())
             {
-                var apiEndpoint = $"auth/realms/{Realm}/protocol/openid-connect/token";
+                var apiEndpoint = KeycloakUriHelper.GetTokenEndpoint(Realm);
 
-                var grant = new Dictionary<string, string>();
-
-                grant.Add("grant_type", "client_credentials");
-                grant.Add("client_id", ClientId);
-                grant.Add("client_secret", ClientSecret);
+                var grant = new Dictionary<string, string>
+                {
+                    { "grant_type", "client_credentials" },
+                    { "client_id", _clientId },
+                    { "client_secret", _clientSecret },
+                };
 
                 var content = new FormUrlEncodedContent(grant);
 
@@ -76,16 +104,23 @@ namespace Keycloak
                 {
                     Method = HttpMethod.Post,
                     Content = content,
-                    RequestUri = new Uri(apiEndpoint, UriKind.Relative)
+                    RequestUri = new Uri(apiEndpoint, UriKind.Relative),
                 };
 
                 var response = await Send(message, false).ConfigureAwait(false);
 
-                if (response.IsSuccessStatusCode)
-                {
-                    var token = await response.Content.ReadAsStringAsync();
+                var tokenBody = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 
-                    Token = JsonConvert.DeserializeObject<OidcToken>(token);
+                if (!response.IsSuccessStatusCode)
+                {
+                    throw new KeycloakAuthenticationException(response.StatusCode, tokenBody);
+                }
+
+                _token = JsonConvert.DeserializeObject<OidcToken>(tokenBody);
+
+                if (_token == null || string.IsNullOrEmpty(_token.AccessToken))
+                {
+                    throw new KeycloakAuthenticationException(response.StatusCode, tokenBody);
                 }
             }
         }

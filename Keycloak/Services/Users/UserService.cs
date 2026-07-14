@@ -1,139 +1,98 @@
-﻿using Keycloak.Constants;
-using Keycloak.Constants.Enums;
+﻿using Keycloak.Constants.Enums;
 using Keycloak.Entities.Users;
-using Newtonsoft.Json;
-using System;
+using Keycloak.Helpers;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 
-namespace Keycloak.Services
+namespace Keycloak.Services.Users
 {
-    public static class UserService
+    public interface IUserService
     {
-        public static async Task<string> CreateUserAsync(IKeycloakClient client, UserRepresentation userRepresentation)
+        Task<string> CreateUserAsync(UserRepresentation userRepresentation);
+
+        Task UpdateUserAsync(UserRepresentation userRepresentation, string userId);
+
+        Task ResetUserPasswordAsync(CredentialRepresentation credentialRepresentation, string userId);
+
+        Task DeleteUserAsync(string userId);
+
+        Task<List<Session>> GetUserSessionsAsync(string userId);
+
+        Task SendEmailAsync(string userId, IEnumerable<RequiredActionsEnum> requiredActions);
+
+        Task SendVerificationEmailAsync(string userId);
+    }
+
+    public class UserService : IUserService
+    {
+        private readonly IKeycloakClient _client;
+
+        public UserService(IKeycloakClient client)
         {
-            var apiEndpoint = $"auth/admin/realms/{client.Realm}/users";
+            _client = client;
+        }
 
+        public Task<string> CreateUserAsync(UserRepresentation userRepresentation)
+        {
+            var apiEndpoint = $"{KeycloakUriHelper.GetAdminRealmPath(_client.Realm)}/users";
             var byteContent = ApiHelper.FormatEntity(userRepresentation);
-
             var message = ApiHelper.ConstructRequest(HttpMethod.Post, apiEndpoint, byteContent);
 
-            var response =  await client.Send(message).ConfigureAwait(false);
-
-            if (response.IsSuccessStatusCode)
-            {
-                return ExtractKeycloakUserId(response.Headers.Location);
-            }
-
-            return null;
+            return KeycloakHttpHelper.SendAndGetCreatedResourceIdAsync(_client, message);
         }
 
-        public static async Task<HttpResponseMessage> UpdateUserAsync(IKeycloakClient client, UserRepresentation userRepresentation, string userId)
+        public Task UpdateUserAsync(UserRepresentation userRepresentation, string userId)
         {
-            var apiEndpoint = $"auth/admin/realms/{client.Realm}/users/{userId}";
-
+            var apiEndpoint = $"{KeycloakUriHelper.GetAdminRealmPath(_client.Realm)}/users/{userId}";
             var byteContent = ApiHelper.FormatEntity(userRepresentation);
-
             var message = ApiHelper.ConstructRequest(HttpMethod.Put, apiEndpoint, byteContent);
 
-            return await client.Send(message).ConfigureAwait(false);
+            return KeycloakHttpHelper.SendAsync(_client, message);
         }
 
-        public static async Task<HttpResponseMessage> ResetUserPasswordAsync(IKeycloakClient client, CredentialRepresentation credentialRepresentation, string userId)
+        public Task ResetUserPasswordAsync(CredentialRepresentation credentialRepresentation, string userId)
         {
-            var apiEndpoint = $"auth/admin/realms/{client.Realm}/users/{userId}/reset-password";
-
+            var apiEndpoint = $"{KeycloakUriHelper.GetAdminRealmPath(_client.Realm)}/users/{userId}/reset-password";
             var byteContent = ApiHelper.FormatEntity(credentialRepresentation);
-
             var message = ApiHelper.ConstructRequest(HttpMethod.Put, apiEndpoint, byteContent);
 
-            return await client.Send(message).ConfigureAwait(false);
+            return KeycloakHttpHelper.SendAsync(_client, message);
         }
 
-        public static async Task<HttpResponseMessage> DeleteUserAsync(IKeycloakClient client, string userId)
+        public Task DeleteUserAsync(string userId)
         {
-            var apiEndpoint = $"auth/admin/realms/{client.Realm}/users/{userId}";
-
+            var apiEndpoint = $"{KeycloakUriHelper.GetAdminRealmPath(_client.Realm)}/users/{userId}";
             var message = ApiHelper.ConstructRequest(HttpMethod.Delete, apiEndpoint);
 
-            return await client.Send(message).ConfigureAwait(false);
+            return KeycloakHttpHelper.SendAsync(_client, message);
         }
 
-        public static async Task<List<Session>> GetUserSessionsAsync(IKeycloakClient client, string userId)
+        public Task<List<Session>> GetUserSessionsAsync(string userId)
         {
-            var apiEndpoint = $"auth/admin/realms/{client.Realm}/users/{userId}/sessions";
-
+            var apiEndpoint = $"{KeycloakUriHelper.GetAdminRealmPath(_client.Realm)}/users/{userId}/sessions";
             var message = ApiHelper.ConstructRequest(HttpMethod.Get, apiEndpoint);
 
-            var response = await client.Send(message).ConfigureAwait(false);
-
-            if (response.IsSuccessStatusCode)
-            {
-                var sesstionStream =  await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
-
-                using(var reader = new StreamReader(sesstionStream))
-                {
-                    return JsonConvert.DeserializeObject<List<Session>>(reader.ReadToEnd());
-                }
-            }
-
-            return null;
+            return KeycloakHttpHelper.SendAndDeserializeAsync<List<Session>>(_client, message);
         }
 
-        public static async Task<HttpResponseMessage> SendEmailAsync(IKeycloakClient client, string userId, IEnumerable<RequiredActionsEnum> requiredActions)
+        public Task SendEmailAsync(string userId, IEnumerable<RequiredActionsEnum> requiredActions)
         {
-            var apiEndpoint = $"auth/admin/realms/{client.Realm}/users/{userId}/execute-actions-email";
-
-            var actionsList = (from action in requiredActions select RequireActionMapper(action)).ToList();
-
+            var apiEndpoint = $"{KeycloakUriHelper.GetAdminRealmPath(_client.Realm)}/users/{userId}/execute-actions-email";
+            var actionsList = requiredActions.Select(action => action.ToKeycloakValue()).ToList();
             var byteContent = ApiHelper.FormatEntity(actionsList);
-
             var message = ApiHelper.ConstructRequest(HttpMethod.Put, apiEndpoint, byteContent);
 
-            return await client.Send(message).ConfigureAwait(false);
+            return KeycloakHttpHelper.SendAsync(_client, message);
         }
 
-        public static async Task<HttpResponseMessage> SendVerificationEmailAsync(IKeycloakClient client, string userId)
+        public Task SendVerificationEmailAsync(string userId)
         {
-            var apiEndpoint = $"auth/admin/realms/{client.Realm}/users/{userId}/send-verify-email";
-
+            var apiEndpoint = $"{KeycloakUriHelper.GetAdminRealmPath(_client.Realm)}/users/{userId}/send-verify-email";
             var message = ApiHelper.ConstructRequest(HttpMethod.Put, apiEndpoint);
 
-            return await client.Send(message).ConfigureAwait(false);
+            return KeycloakHttpHelper.SendAsync(_client, message);
         }
-
-        private static string ExtractKeycloakUserId(Uri userEndPoint)
-        {
-            return userEndPoint.Segments.Last();
-        }
-
-        private static string RequireActionMapper(RequiredActionsEnum requiredActions)
-        {
-            var action = "";
-            switch (requiredActions)
-            {
-                case RequiredActionsEnum.UpdatePassword:
-                    action = RequiredActions.UpdatePassword;
-                    break;
-                case RequiredActionsEnum.VerifyEmail:
-                    action = RequiredActions.VerifyEmail;
-                    break;
-                case RequiredActionsEnum.UpdateProfile:
-                    action = RequiredActions.UpdateProfile;
-                    break;
-                case RequiredActionsEnum.ConfigureOTP:
-                    action = RequiredActions.ConfigureOTP;
-                    break;
-                case RequiredActionsEnum.TermsAndConditions:
-                    action = RequiredActions.TermsAndConditions;
-                    break;
-            }
-
-            return action;
-        }
-
     }
 }

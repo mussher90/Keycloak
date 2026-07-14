@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json;
 using System;
+using System.Collections.Generic;
 
 namespace Keycloak.Entities.Realm
 {
@@ -31,100 +32,60 @@ namespace Keycloak.Entities.Realm
 
         public string GetQueryString()
         {
-            var queryString = "";
+            var parameters = new List<string>();
 
-            if(Client != null)
+            if (Client != null)
             {
-                queryString += $"?client={Client}";
+                parameters.Add($"client={Uri.EscapeDataString(Client)}");
             }
 
-            if(FromDate != null)
+            if (FromDate != null)
             {
-                var fromDate = (DateTime)FromDate;
-                if (queryString != "")
-                {
-                    queryString += $"?dateFrom={fromDate:yyyy-MM-dd}";
-                }
-                else
-                {
-                    queryString += $"&dateFrom={fromDate:yyyy-MM-dd}";
-                }
+                parameters.Add($"dateFrom={FromDate.Value:yyyy-MM-dd}");
             }
 
             if (ToDate != null)
             {
-                var toDate = (DateTime)ToDate;
-                if (queryString != "")
-                {
-                    queryString += $"?dateTo={toDate:yyyy-MM-dd}";
-                }
-                else
-                {
-                    queryString += $"&dateTo={toDate:yyyy-MM-dd}";
-                }
+                parameters.Add($"dateTo={ToDate.Value:yyyy-MM-dd}");
             }
 
             if (First != null)
             {
-                if (queryString != "")
-                {
-                    queryString += $"?first={First}";
-                }
-                else
-                {
-                    queryString += $"&first={First}";
-                }
+                parameters.Add($"first={First.Value}");
             }
 
             if (IpAddress != null)
             {
-                if (queryString != "")
-                {
-                    queryString += $"?ipAddress={IpAddress}";
-                }
-                else
-                {
-                    queryString += $"&ipAddress={IpAddress}";
-                }
+                parameters.Add($"ipAddress={Uri.EscapeDataString(IpAddress)}");
             }
 
             if (Max != null)
             {
-                if (queryString != "")
-                {
-                    queryString += $"?max={Max}";
-                }
-                else
-                {
-                    queryString += $"&max={Max}";
-                }
+                parameters.Add($"max={Max.Value}");
             }
 
             if (Type != null)
             {
-                if (queryString != "")
+                foreach (var eventType in Type)
                 {
-                    queryString += $"?type={Type}";
-                }
-                else
-                {
-                    queryString += $"&type={Type}";
+                    if (eventType != null)
+                    {
+                        parameters.Add($"type={Uri.EscapeDataString(eventType)}");
+                    }
                 }
             }
 
             if (KeycloakUserId != null)
             {
-                if (queryString != "")
-                {
-                    queryString += $"?user={KeycloakUserId}";
-                }
-                else
-                {
-                    queryString += $"&user={KeycloakUserId}";
-                }
+                parameters.Add($"user={Uri.EscapeDataString(KeycloakUserId)}");
             }
 
-            return queryString;
+            if (parameters.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            return "?" + string.Join("&", parameters);
         }
     }
 }

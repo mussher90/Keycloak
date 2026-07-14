@@ -23,7 +23,6 @@ namespace Keycloak.Entities.Users
         public bool Enabled { get; set; }
 
         [JsonProperty("credentials")]
-
-        public CredentialRepresentation[] Credentials; 
+        public CredentialRepresentation[] Credentials { get; set; }
     }
 }

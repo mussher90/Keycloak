@@ -1,4 +1,4 @@
-﻿namespace Keycloak.Enums
+﻿namespace Keycloak.Constants.Enums
 {
     public enum ValidationStatusCode
     {
@@ -10,6 +10,6 @@
         Expired,
         MissingAlgorithm,
         MissingSigningKey,
-        InvalidSignature
+        InvalidSignature,
     }
 }

@@ -1,50 +1,44 @@
 ﻿using System.Threading.Tasks;
+using Keycloak.Configuration;
+using Keycloak.Constants.Enums;
+using Keycloak.Entities;
 using Keycloak.Entities.Keys;
-using Keycloak.Enums;
 using Keycloak.Services.Keys;
+using Keycloak.Validators;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Keycloak.Middleware
 {
-    // You may need to install the Microsoft.AspNetCore.Http.Abstractions package into your project
     public class TokenMiddleware
     {
         private readonly RequestDelegate _next;
-        private readonly IConfiguration _configuration;
         private readonly IMemoryCache _cache;
-        private readonly IKeycloakClient _client;
+        private readonly IKeyService _keyService;
+        private readonly KeycloakOptions _options;
 
-        public TokenMiddleware(RequestDelegate next, IConfiguration configuration, IMemoryCache cache, IKeycloakClient client)
+        public TokenMiddleware(
+            RequestDelegate next,
+            IMemoryCache cache,
+            IKeyService keyService,
+            KeycloakOptions options)
         {
-            _configuration = configuration;
             _next = next;
             _cache = cache;
-            _client = client;
+            _keyService = keyService;
+            _options = options;
         }
 
-        public Task Invoke(HttpContext httpContext)
+        public async Task InvokeAsync(HttpContext httpContext)
         {
-            string accessToken = null;
-            bool isValid = false;
-            
-            var authorizationHeaders = httpContext.Request.Headers["Authorization"];
-            var authenticationURI = _configuration["KeycloakServer"];
+            var isValid = false;
 
-            var realmKeys = GetKeys().Result;
-
-            if(authorizationHeaders.Count == 1)
+            if (TryExtractBearerToken(httpContext, out var accessToken))
             {
-                accessToken = authorizationHeaders.ToString().Split(' ')[1];
-
-                var parameters = new TokenValidationParameters
-                {
-                    Token = accessToken,
-                    Keys = realmKeys,
-                    Issuer = authenticationURI,
-                };
+                var realmKeys = await GetKeys().ConfigureAwait(false);
+                var parameters = BuildValidationParameters(accessToken, realmKeys);
 
                 isValid = TokenValidator.ValidateToken(parameters).Equals(ValidationStatusCode.Ok);
             }
@@ -52,31 +46,77 @@ namespace Keycloak.Middleware
             if (!isValid)
             {
                 httpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                return httpContext.Response.WriteAsync("Unauthorized");
+                await httpContext.Response.WriteAsync("Unauthorized").ConfigureAwait(false);
+                return;
             }
 
-            return _next(httpContext);
+            await _next(httpContext).ConfigureAwait(false);
         }
+
+        internal TokenValidationParameters BuildValidationParameters(string accessToken, RealmKeys realmKeys)
+        {
+            var parameters = new TokenValidationParameters
+            {
+                Token = accessToken,
+                Keys = realmKeys,
+                Issuer = _options.Authority,
+                ServerSkew = _options.ServerSkew,
+            };
+
+            if (_options.ValidateClientId)
+            {
+                parameters.Client = _options.ClientId;
+            }
+
+            return parameters;
+        }
+
+        private static bool TryExtractBearerToken(HttpContext httpContext, out string accessToken)
+        {
+            accessToken = null;
+
+            if (!httpContext.Request.Headers.TryGetValue("Authorization", out var authorizationHeader))
+            {
+                return false;
+            }
+
+            var headerValue = authorizationHeader.ToString();
+
+            if (!headerValue.StartsWith("Bearer ", System.StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            accessToken = headerValue.Substring("Bearer ".Length).Trim();
+
+            return !string.IsNullOrEmpty(accessToken);
+        }
+
         private async Task<RealmKeys> GetKeys()
         {
-            if(_cache.Get("RealmKeys") != null)
+            var cacheKey = RealmKeysCache.GetCacheKey(_options.Realm);
+
+            if (_cache.TryGetValue(cacheKey, out RealmKeys cachedKeys))
             {
-                return (RealmKeys)_cache.Get("RealmKeys");
+                return cachedKeys;
             }
 
-            var realmKeys = await KeyService.GetKeysAsync(_client);
+            var realmKeys = await _keyService.GetKeysAsync().ConfigureAwait(false);
 
-            _cache.Set("RealmKeys", realmKeys);
+            _cache.Set(cacheKey, realmKeys, RealmKeysCache.CreateEntryOptions(_options));
 
             return realmKeys;
         }
-
     }
 
-    // Extension method used to add the middleware to the HTTP request pipeline.
     public static class JWTValidatorExtensions
     {
         public static IApplicationBuilder UseTokenMiddleware(this IApplicationBuilder builder)
+        {
+            return builder.UseMiddleware<TokenMiddleware>();
+        }
+
+        public static IApplicationBuilder UseKeycloakTokenValidation(this IApplicationBuilder builder)
         {
             return builder.UseMiddleware<TokenMiddleware>();
         }

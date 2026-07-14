@@ -1,13 +1,13 @@
-﻿using System.Net.Http;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
+using System.Net.Http;
 
 namespace Keycloak
 {
     public interface IKeycloakClient
     {
-        HttpClient Client { get; }
+        string Realm { get; }
 
-        string Realm { get;}
+        string ServerUrl { get; }
 
         Task<HttpResponseMessage> Send(HttpRequestMessage message, bool requiresAccessToken = true);
     }

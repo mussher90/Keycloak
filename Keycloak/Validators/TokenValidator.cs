@@ -1,60 +1,106 @@
-﻿using Keycloak.Entities;
+﻿using Keycloak.Constants.Enums;
+using Keycloak.Entities;
 using Keycloak.Entities.Keys;
-using Keycloak.Enums;
+using Keycloak.Helpers;
+using Microsoft.IdentityModel.Tokens;
 using System;
+using System.Collections.Generic;
+using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
+using System.Security.Claims;
 using System.Security.Cryptography;
-using System.Text;
 
-namespace Keycloak
+namespace Keycloak.Validators
 {
     public static class TokenValidator
-    {        
-         public static ValidationStatusCode ValidateToken(TokenValidationParameters parameters)
+    {
+        public static ValidationStatusCode ValidateToken(Entities.TokenValidationParameters parameters)
         {
-            var token = parameters.Token;
-            var keys = parameters.Keys;
-            var client = parameters.Client;
-            var checkClient = parameters.CheckClient;
-            var issuer = parameters.Issuer;
-            var checkIssuer = parameters.CheckIssuer;
-            var webOrigins = parameters.WebOrigins;
-            var checkWebOrigins = parameters.CheckWebOrigins;
-            Jwt tokenObj;
-
-            if (!CheckFormat(token))
+            if (string.IsNullOrWhiteSpace(parameters.Token) || !CheckFormat(parameters.Token))
             {
                 return ValidationStatusCode.IncorrectFormat;
             }
 
-            tokenObj = new Jwt(token);
-
-            if (!CheckHashAlgorithm(tokenObj.Header, out HashAlgorithmName? hashAlgorithm))
+            if (parameters.Keys?.Keys == null || !parameters.Keys.Keys.Any())
             {
-                return ValidationStatusCode.MissingAlgorithm;
+                return ValidationStatusCode.MissingSigningKey;
             }
 
-            if(checkIssuer && !CheckIssuer(tokenObj.Payload, issuer))
+            var handler = new JwtSecurityTokenHandler();
+
+            if (!handler.CanReadToken(parameters.Token))
+            {
+                return ValidationStatusCode.IncorrectFormat;
+            }
+
+            var jwt = handler.ReadJwtToken(parameters.Token);
+
+            if (parameters.CheckIssuer && jwt.Issuer != parameters.Issuer)
             {
                 return ValidationStatusCode.IncorrectIssuer;
             }
 
-            if (checkClient && !CheckClient(tokenObj.Payload, client))
+            if (!HasMatchingSigningKey(jwt, parameters.Keys))
+            {
+                return ValidationStatusCode.MissingSigningKey;
+            }
+
+            if (parameters.CheckClient && !CheckClientClaim(jwt, parameters.Client))
             {
                 return ValidationStatusCode.IncorrectClient;
             }
 
-            if (!CheckExpiration(tokenObj.Payload))
+            if (parameters.CheckWebOrigins && !CheckWebOrigins(jwt, parameters.WebOrigins))
+            {
+                return ValidationStatusCode.InvalidWebOrigins;
+            }
+
+            try
+            {
+                var validationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
+                {
+                    ValidateIssuer = parameters.CheckIssuer,
+                    ValidIssuer = parameters.Issuer,
+                    ValidateAudience = false,
+                    ValidateLifetime = true,
+                    ClockSkew = TimeSpan.FromSeconds(parameters.ServerSkew),
+                    RequireSignedTokens = true,
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKeys = GetSigningKeys(parameters.Keys),
+                };
+
+                handler.ValidateToken(parameters.Token, validationParameters, out SecurityToken _);
+
+                return ValidationStatusCode.Ok;
+            }
+            catch (SecurityTokenExpiredException)
             {
                 return ValidationStatusCode.Expired;
             }
-
-            var signingKey = keys.Keys
-                            .Select(x => x)
-                            .Where(x => x.KeyId == tokenObj.Header.KeyId)
-                            .FirstOrDefault();
-
-            return CheckSignature(signingKey, tokenObj, (HashAlgorithmName)hashAlgorithm) ? ValidationStatusCode.Ok : ValidationStatusCode.InvalidSignature;
+            catch (SecurityTokenInvalidIssuerException)
+            {
+                return ValidationStatusCode.IncorrectIssuer;
+            }
+            catch (SecurityTokenSignatureKeyNotFoundException)
+            {
+                return ValidationStatusCode.MissingSigningKey;
+            }
+            catch (SecurityTokenInvalidAlgorithmException)
+            {
+                return ValidationStatusCode.MissingAlgorithm;
+            }
+            catch (SecurityTokenInvalidSignatureException)
+            {
+                return ValidationStatusCode.InvalidSignature;
+            }
+            catch (ArgumentException)
+            {
+                return ValidationStatusCode.IncorrectFormat;
+            }
+            catch (SecurityTokenException)
+            {
+                return ValidationStatusCode.InvalidSignature;
+            }
         }
 
         public static bool CheckFormat(string token)
@@ -62,92 +108,74 @@ namespace Keycloak
             return token.Split('.').Length == 3;
         }
 
-        public static bool CheckHashAlgorithm(Header header, out HashAlgorithmName? hashAlgorithm)
+        public static bool CheckIssuer(Payload payload, string issuer)
         {
-            hashAlgorithm = GetHashAlgorithm(header);
-
-            return hashAlgorithm != null;
+            return payload.Issuer == issuer;
         }
 
-        public static bool CheckIssuer(Payload payload, string Issuer)
+        public static bool CheckClient(Payload payload, string client)
         {
-            return payload.Issuer == Issuer;
+            return payload.AuthorizingParty == client;
         }
 
-        public static bool CheckClient(Payload payload, string Client)
+        public static bool CheckExpiration(Payload payload, int serverSkewSeconds = 0)
         {
-            return payload.AuthorizingParty == Client;
+            var expiry = DateTimeOffset.FromUnixTimeSeconds(payload.Expiry);
+
+            return expiry.AddSeconds(serverSkewSeconds) >= DateTimeOffset.UtcNow;
         }
 
-        public static bool CheckExpiration(Payload payload)
+        private static bool CheckClientClaim(JwtSecurityToken token, string client)
         {
-            // Unix timestamp is seconds past epoch
-            DateTime dateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
-            dateTime = dateTime.AddSeconds(payload.Expiry).ToLocalTime();
-
-            return dateTime >= DateTime.Now;
+            var azp = token.Claims.FirstOrDefault(claim => claim.Type == "azp")?.Value;
+            return azp == client;
         }
 
-        public static bool CheckSignature(Key signingKey, Jwt token, HashAlgorithmName algorithmName)
+        private static bool CheckWebOrigins(JwtSecurityToken token, IEnumerable<string> expectedOrigins)
         {
-            var hashedPayload = CalculateHash(token.EncodedHeader, token.EncodedPayload);
-            var signatureBytes = base64Decode(token.Signature);
-
-            using (RSACryptoServiceProvider rsa = new RSACryptoServiceProvider())
+            if (expectedOrigins == null)
             {
-                RSAParameters keyParams = new RSAParameters
+                return true;
+            }
+
+            var allowedOrigins = new HashSet<string>(
+                token.Claims.Where(claim => claim.Type == "allowed-origins").Select(claim => claim.Value),
+                StringComparer.OrdinalIgnoreCase);
+
+            return expectedOrigins.All(origin => allowedOrigins.Contains(origin));
+        }
+
+        private static bool HasMatchingSigningKey(JwtSecurityToken token, RealmKeys realmKeys)
+        {
+            var keyId = token.Header.Kid;
+
+            return realmKeys.Keys.Any(key =>
+                key.KeyType == "RSA" &&
+                !string.IsNullOrEmpty(key.Modulus) &&
+                !string.IsNullOrEmpty(key.Exponent) &&
+                key.KeyId == keyId);
+        }
+
+        private static IEnumerable<SecurityKey> GetSigningKeys(RealmKeys realmKeys)
+        {
+            foreach (var key in realmKeys.Keys)
+            {
+                if (key.KeyType != "RSA" ||
+                    string.IsNullOrEmpty(key.Modulus) ||
+                    string.IsNullOrEmpty(key.Exponent))
                 {
-                    Modulus = base64Decode(signingKey.Modulus),
-                    Exponent = base64Decode(signingKey.Exponent)
-                };
+                    continue;
+                }
 
-                rsa.ImportParameters(keyParams);
-                return rsa.VerifyHash(hashedPayload, signatureBytes, algorithmName, RSASignaturePadding.Pkcs1);
+                var rsa = RSA.Create();
+                rsa.ImportParameters(new RSAParameters
+                {
+                    Modulus = JwtEncodingHelper.Base64UrlDecode(key.Modulus),
+                    Exponent = JwtEncodingHelper.Base64UrlDecode(key.Exponent),
+                });
+
+                yield return new RsaSecurityKey(rsa) { KeyId = key.KeyId };
             }
         }
-
-        public static byte[] base64Decode(string encodedString) 
-        {
-
-            encodedString = encodedString.Replace('_', '/').Replace('-', '+');
-
-            while (encodedString.Length % 4 != 0)
-            {
-                encodedString += '=';
-            }
-
-            return Convert.FromBase64String(encodedString);
-        }
-
-        public static string urlEncode(string encodedString)
-        {
-            return encodedString.Replace('/', '_').Replace('+', '-');
-        }
-
-        private static byte[] CalculateHash(string header, string payload)
-        {
-            var byteArray = Encoding.UTF8.GetBytes(header + "." + payload);
-            byte[] hashedResult = null;
-
-            //shouldn't assume SHA256
-            using (SHA256 hasher = SHA256.Create())
-            {
-                hashedResult = hasher.ComputeHash(byteArray);
-            }
-            return hashedResult;
-        }
-
-        private static HashAlgorithmName? GetHashAlgorithm(Header header)
-        {
-            switch (header.Algorithm)
-            {
-                case "RS256":
-                    return HashAlgorithmName.SHA256;
-                default:
-                    return null;
-            }
-        }
-
     }
 }
-
