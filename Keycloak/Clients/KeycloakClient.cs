@@ -20,13 +20,15 @@ namespace Keycloak
         private readonly string _clientId;
         private OidcToken _token;
 
-        public KeycloakClient(IOptions<KeycloakOptions> options)
-            : this(options?.Value ?? throw new ArgumentNullException(nameof(options)))
+        public KeycloakClient(HttpClient httpClient, IOptions<KeycloakOptions> options)
+            : this(httpClient, options?.Value ?? throw new ArgumentNullException(nameof(options)))
         {
         }
 
-        public KeycloakClient(KeycloakOptions options)
+        public KeycloakClient(HttpClient httpClient, KeycloakOptions options)
         {
+            _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+
             if (options == null)
             {
                 throw new ArgumentNullException(nameof(options));
@@ -34,11 +36,20 @@ namespace Keycloak
 
             options.Validate();
 
-            _httpClient = new HttpClient { BaseAddress = new Uri(options.ServerUrl) };
+            if (_httpClient.BaseAddress == null)
+            {
+                _httpClient.BaseAddress = new Uri(NormalizeServerUrl(options.ServerUrl));
+            }
+
             ServerUrl = options.ServerUrl;
             Realm = options.Realm;
             _clientId = options.ClientId;
             _clientSecret = options.ClientSecret;
+        }
+
+        public KeycloakClient(KeycloakOptions options)
+            : this(CreateDefaultHttpClient(options), options)
+        {
         }
 
         public KeycloakClient(IConfiguration configuration)
@@ -123,6 +134,21 @@ namespace Keycloak
                     throw new KeycloakAuthenticationException(response.StatusCode, tokenBody);
                 }
             }
+        }
+
+        private static HttpClient CreateDefaultHttpClient(KeycloakOptions options)
+        {
+            options.Validate();
+
+            return new HttpClient
+            {
+                BaseAddress = new Uri(NormalizeServerUrl(options.ServerUrl)),
+            };
+        }
+
+        private static string NormalizeServerUrl(string serverUrl)
+        {
+            return serverUrl.TrimEnd('/') + "/";
         }
     }
 }
