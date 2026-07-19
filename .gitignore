@@ -3,3 +3,6 @@ Keycloak/obj
 Keycloak.Test/bin
 Keycloak.Test/obj
 .vs
+*.nupkg
+*.snupkg
+artifacts/

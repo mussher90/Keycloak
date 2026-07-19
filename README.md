@@ -10,7 +10,11 @@ A C# library for interacting with a [Keycloak](https://www.keycloak.org/) authen
 
 ## Installation
 
-Reference the `Keycloak` project or NuGet package in your application.
+```bash
+dotnet add package Keycloak.AdminClient
+```
+
+Or reference the `Keycloak` project directly from this repository.
 
 ## Configuration
 
@@ -182,4 +186,4 @@ dotnet test Keycloak.Test/Keycloak.Test.csproj
 
 ## License
 
-See repository license file.
+MIT — see [LICENSE](LICENSE).

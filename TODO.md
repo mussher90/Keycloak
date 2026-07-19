@@ -77,11 +77,6 @@ Improvement backlog for future work. Items are roughly ordered by impact. Check 
   - Bump Extensions to 8.x (or align with the test project's `net8.0`) to reduce compatibility surprises.
   - File: `Keycloak/Keycloak.csproj`
 
-- [ ] **Add NuGet metadata**
-  - README mentions a NuGet package, but the `.csproj` has no `PackageId`, version, description, or README packing.
-  - Add metadata if publishing is planned.
-  - File: `Keycloak/Keycloak.csproj`
-
 - [ ] **Add logging**
   - No `ILogger` usage anywhere.
   - Log token acquisition failures and API errors (without secrets).
@@ -127,6 +122,7 @@ If picking this up with limited time, start here:
 
 ## Already done (recent refactors)
 
+- [x] NuGet package metadata and publish workflow (`Keycloak.AdminClient`)
 - [x] `CancellationToken` support across `IKeycloakClient`, services, and HTTP helpers
 - [x] Removed legacy custom token middleware and duplicate JWT validation helpers
 - [x] Unified token expiry checking (`expires_in` + JWT `exp`, shared `ServerSkew`, IdentityModel parsing)
