@@ -9,6 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Keycloak
@@ -18,6 +19,7 @@ namespace Keycloak
         private readonly HttpClient _httpClient;
         private readonly string _clientSecret;
         private readonly string _clientId;
+        private readonly SemaphoreSlim _tokenLock = new SemaphoreSlim(1, 1);
         private OidcToken _token;
 
         public KeycloakClient(HttpClient httpClient, IOptions<KeycloakOptions> options)
@@ -98,8 +100,19 @@ namespace Keycloak
 
         private async Task SetToken()
         {
-            if (!ValidToken())
+            if (ValidToken())
             {
+                return;
+            }
+
+            await _tokenLock.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                if (ValidToken())
+                {
+                    return;
+                }
+
                 var apiEndpoint = KeycloakUriHelper.GetTokenEndpoint(Realm);
 
                 var grant = new Dictionary<string, string>
@@ -133,6 +146,10 @@ namespace Keycloak
                 {
                     throw new KeycloakAuthenticationException(response.StatusCode, tokenBody);
                 }
+            }
+            finally
+            {
+                _tokenLock.Release();
             }
         }
 
