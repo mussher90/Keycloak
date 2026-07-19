@@ -19,8 +19,10 @@ namespace Keycloak
         private readonly HttpClient _httpClient;
         private readonly string _clientSecret;
         private readonly string _clientId;
+        private readonly int _serverSkew;
         private readonly SemaphoreSlim _tokenLock = new SemaphoreSlim(1, 1);
         private OidcToken _token;
+        private DateTimeOffset _tokenExpiresAt;
 
         public KeycloakClient(HttpClient httpClient, IOptions<KeycloakOptions> options)
             : this(httpClient, options?.Value ?? throw new ArgumentNullException(nameof(options)))
@@ -47,6 +49,7 @@ namespace Keycloak
             Realm = options.Realm;
             _clientId = options.ClientId;
             _clientSecret = options.ClientSecret;
+            _serverSkew = options.ServerSkew;
         }
 
         public KeycloakClient(KeycloakOptions options)
@@ -88,14 +91,46 @@ namespace Keycloak
 
         private bool ValidToken()
         {
-            if (_token == null)
+            return _token != null &&
+                   !string.IsNullOrEmpty(_token.AccessToken) &&
+                   DateTimeOffset.UtcNow < _tokenExpiresAt;
+        }
+
+        private void SetCachedToken(OidcToken token)
+        {
+            _token = token;
+            _tokenExpiresAt = CalculateTokenExpiry(token);
+        }
+
+        private DateTimeOffset CalculateTokenExpiry(OidcToken token)
+        {
+            DateTimeOffset? lifespanExpiry = null;
+            DateTimeOffset? jwtExpiry = null;
+
+            if (token.Lifespan > 0)
             {
-                return false;
+                lifespanExpiry = DateTimeOffset.UtcNow.AddSeconds(token.Lifespan);
             }
 
-            var jwt = new Jwt(_token.AccessToken);
+            if (!string.IsNullOrEmpty(token.AccessToken) &&
+                TokenValidator.TryGetAccessTokenExpiry(token.AccessToken, out var parsedJwtExpiry))
+            {
+                jwtExpiry = parsedJwtExpiry;
+            }
 
-            return TokenValidator.CheckExpiration(jwt.Payload);
+            if (!lifespanExpiry.HasValue && !jwtExpiry.HasValue)
+            {
+                return DateTimeOffset.MinValue;
+            }
+
+            var expiry = lifespanExpiry ?? jwtExpiry.Value;
+
+            if (jwtExpiry.HasValue && jwtExpiry.Value < expiry)
+            {
+                expiry = jwtExpiry.Value;
+            }
+
+            return expiry.AddSeconds(_serverSkew);
         }
 
         private async Task SetToken()
@@ -146,6 +181,8 @@ namespace Keycloak
                 {
                     throw new KeycloakAuthenticationException(response.StatusCode, tokenBody);
                 }
+
+                SetCachedToken(_token);
             }
             finally
             {

@@ -15,17 +15,12 @@ namespace Keycloak.Configuration
         public string ClientSecret { get; set; }
 
         /// <summary>
-        /// Clock skew in seconds applied when validating token expiry in middleware. Defaults to 0.
+        /// Clock skew in seconds applied when validating token expiry. Defaults to 0.
         /// </summary>
         public int ServerSkew { get; set; }
 
         /// <summary>
-        /// How long to cache realm signing keys in middleware, in seconds. Defaults to 3600 (1 hour).
-        /// </summary>
-        public int RealmKeysCacheSeconds { get; set; } = 3600;
-
-        /// <summary>
-        /// When true, middleware validates that the token's azp claim matches ClientId.
+        /// When true, JWT bearer authentication validates that the token's azp claim matches ClientId.
         /// </summary>
         public bool ValidateClientId { get; set; } = true;
 

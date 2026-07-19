@@ -127,7 +127,8 @@ namespace Keycloak.Test
         private static HttpResponseMessage TokenResponse(long expiryUnixSeconds)
         {
             var accessToken = CreateTestJwt(expiryUnixSeconds);
-            var body = $"{{\"access_token\":\"{accessToken}\",\"expires_in\":3600,\"token_type\":\"Bearer\"}}";
+            var expiresIn = Math.Max(0, (int)(expiryUnixSeconds - DateTimeOffset.UtcNow.ToUnixTimeSeconds()));
+            var body = $"{{\"access_token\":\"{accessToken}\",\"expires_in\":{expiresIn},\"token_type\":\"Bearer\"}}";
 
             return JsonResponse(HttpStatusCode.OK, body);
         }

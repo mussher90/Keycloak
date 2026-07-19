@@ -1,10 +1,11 @@
 # Keycloak
 
-A C# library for interacting with a [Keycloak](https://www.keycloak.org/) authentication server (Keycloak 17+). It provides admin API clients, JWT validation, and ASP.NET Core middleware.
+A C# library for interacting with a [Keycloak](https://www.keycloak.org/) authentication server (Keycloak 17+). It provides admin API clients and ASP.NET Core JWT bearer authentication.
 
 ## Requirements
 
-- .NET Standard 2.0+ (library)
+- .NET Standard 2.0+ (admin API client)
+- .NET 8.0+ (JWT bearer authentication extensions)
 - Keycloak 17+ (modern URL paths without `/auth` prefix)
 
 ## Installation
@@ -23,7 +24,6 @@ Reference the `Keycloak` project or NuGet package in your application.
     "ClientId": "my-service",
     "ClientSecret": "your-client-secret",
     "ServerSkew": 30,
-    "RealmKeysCacheSeconds": 3600,
     "ValidateClientId": true
   }
 }
@@ -46,21 +46,19 @@ Reference the `Keycloak` project or NuGet package in your application.
 | `Realm` | Realm name |
 | `ClientId` / `ClientSecret` | Service account for admin API (client credentials) |
 | `ServerSkew` | Clock skew in seconds for token expiry validation |
-| `RealmKeysCacheSeconds` | How long middleware caches JWKS keys (default 3600) |
-| `ValidateClientId` | Whether middleware validates the token `azp` claim |
+| `ValidateClientId` | Whether JWT bearer auth validates the token `azp` claim |
 
 ## Dependency injection
 
 ```csharp
 using Keycloak.Extensions;
-using Keycloak.Middleware;
 
 // Program.cs / Startup.cs
-builder.Services.AddMemoryCache();
 builder.Services.AddKeycloak(builder.Configuration);
+builder.Services.AddKeycloakAuthentication(); // Requires .NET 8+ app referencing net8.0 build
 
 var app = builder.Build();
-app.UseKeycloakTokenValidation();
+app.UseKeycloakAuthentication(); // UseAuthentication + UseAuthorization
 ```
 
 `AddKeycloak` registers:
@@ -165,13 +163,16 @@ If upgrading from an older version of this library:
 3. **Null on failure removed** — Service methods throw `KeycloakApiException` instead of returning `null`.
 4. **`HttpResponseMessage` return types removed** — Update/Delete/Email methods return `Task` and throw on failure.
 5. **`IKeycloakClient.Client` removed** — `HttpClient` is no longer exposed on the interface.
-6. **Namespaces updated** — `TokenValidator` is in `Keycloak.Validators`, `TokenValidationParameters` in `Keycloak.Entities`, `ValidationStatusCode` in `Keycloak.Constants.Enums`.
+6. **Custom token middleware removed** — Use `AddKeycloakAuthentication()` and `UseKeycloakAuthentication()` instead of `UseKeycloakTokenValidation()`.
+7. **Custom JWT validation helpers removed** — Incoming token validation is handled by ASP.NET Core JWT bearer; admin client expiry uses `TokenValidator.IsAccessTokenValid()`.
 
-## Middleware
+## Authentication
 
-The token middleware validates `Authorization: Bearer` tokens on incoming requests. It caches realm signing keys, validates issuer (`{ServerUrl}/realms/{Realm}`), and optionally validates the client ID (`azp`).
+`AddKeycloakAuthentication()` configures standard ASP.NET Core JWT bearer authentication using your Keycloak realm authority, `ServerSkew`, and optional `azp` validation (`ValidateClientId`).
 
-Requires `IMemoryCache` and `AddKeycloak()` to be registered before `UseKeycloakTokenValidation()`.
+It populates `HttpContext.User` so downstream code can use `[Authorize]`, policies, and `User.Identity`.
+
+Requires `AddKeycloak()` to be registered first.
 
 ## Testing
 

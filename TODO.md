@@ -6,46 +6,24 @@ Improvement backlog for future work. Items are roughly ordered by impact. Check 
 
 ## High impact
 
-- [ ] **Thread-safe token refresh in `KeycloakClient`**
-  - `SetToken()` has no synchronization; concurrent requests when a token expires can race and fetch multiple tokens.
-  - Consider a `SemaphoreSlim(1, 1)` with double-checked locking after acquire.
-  - File: `Keycloak/Clients/KeycloakClient.cs`
-
-- [ ] **Unify token expiry checking**
-  - Middleware uses IdentityModel with `ClockSkew`; `KeycloakClient.ValidToken()` still uses the custom `Jwt` entity and `CheckExpiration` without skew.
-  - Admin API token refresh and middleware validation can disagree on whether a token is expired.
-  - Prefer one path — e.g. read `exp` via `JwtSecurityTokenHandler` and apply the same skew from options.
-  - Files: `Keycloak/Clients/KeycloakClient.cs`, `Keycloak/Validators/TokenValidator.cs`
-
 - [ ] **Add `CancellationToken` support**
   - No HTTP calls accept cancellation today.
-  - Add `CancellationToken cancellationToken = default` to `IKeycloakClient.Send`, service methods, and middleware.
-  - Files: `Keycloak/Clients/IKeycloakClient.cs`, `Keycloak/Clients/KeycloakClient.cs`, service interfaces/implementations, `Keycloak/Middleware/TokenMiddleware.cs`
-
-- [ ] **Populate `HttpContext.User` in middleware**
-  - Middleware validates tokens but does not attach claims to the request context.
-  - Downstream code cannot use `[Authorize]`, `User.Identity`, or policy-based auth without re-parsing the token.
-  - Consider setting `httpContext.User` from validated JWT claims, or document integration with `AddAuthentication().AddJwtBearer()`.
-  - File: `Keycloak/Middleware/TokenMiddleware.cs`
+  - Add `CancellationToken cancellationToken = default` to `IKeycloakClient.Send`, service methods, and auth configuration where applicable.
+  - Files: `Keycloak/Clients/IKeycloakClient.cs`, `Keycloak/Clients/KeycloakClient.cs`, service interfaces/implementations
 
 ---
 
-## Middleware and auth UX
+## Auth UX
 
 - [ ] **Support optional / mixed auth routes**
-  - Missing `Authorization` header currently returns 401; no way to protect only some routes without external wrapping.
-  - Options: auth handler registration instead of global middleware, `RequireAuthentication = false` option, or endpoint metadata (`[AllowAnonymous]`).
-  - File: `Keycloak/Middleware/TokenMiddleware.cs`
+  - Use standard ASP.NET Core `[AllowAnonymous]` and authorization policies with `AddKeycloakAuthentication()`.
+  - Consider documenting common patterns in README.
+  - File: `README.md`
 
-- [ ] **JWKS cache refresh on unknown `kid`**
-  - If Keycloak rotates keys, cached JWKS can reject valid tokens until cache expiry.
-  - On `MissingSigningKey`, invalidate cache, refetch once, and retry validation.
-  - Files: `Keycloak/Middleware/TokenMiddleware.cs`, `Keycloak/Middleware/RealmKeysCache.cs`
-
-- [ ] **Improve 401 responses**
-  - Plain `"Unauthorized"` with no `WWW-Authenticate` header makes debugging harder for API clients.
-  - Consider a structured JSON error body and/or standard auth headers.
-  - File: `Keycloak/Middleware/TokenMiddleware.cs`
+- [ ] **Document `ValidateClientId` / `azp` vs `aud`**
+  - `ValidateClientId` checks the `azp` claim, which is correct for Keycloak client tokens.
+  - Document when `aud` validation may be needed instead for resource/API tokens.
+  - File: `README.md`
 
 ---
 
@@ -57,9 +35,8 @@ Improvement backlog for future work. Items are roughly ordered by impact. Check 
   - Consider `services.AddOptions<KeycloakOptions>().BindConfiguration(...).ValidateOnStart()` instead of manual bind + validate.
   - File: `Keycloak/Extensions/ServiceCollectionExtensions.cs`
 
-- [ ] **Register middleware helpers together**
-  - Consumers must remember: `AddMemoryCache()`, `AddKeycloak()`, `UseKeycloakTokenValidation()`.
-  - Consider having `AddKeycloak` optionally register `IMemoryCache`, or provide `AddKeycloakAuth()` that wires JWT bearer.
+- [ ] **Combine admin + auth registration**
+  - Consider a single `AddKeycloakAuth()` helper that calls `AddKeycloak()` and `AddKeycloakAuthentication()`.
   - Files: `Keycloak/Extensions/ServiceCollectionExtensions.cs`, `README.md`
 
 - [ ] **Expand admin API surface**
@@ -100,10 +77,6 @@ Improvement backlog for future work. Items are roughly ordered by impact. Check 
   - Add `<Nullable>enable</Nullable>` to catch null issues in DTOs and service returns.
   - File: `Keycloak/Keycloak.csproj`
 
-- [ ] **Modernize target frameworks**
-  - Consider multi-targeting `netstandard2.0` + `net8.0` (or later) for newer DI/HTTP APIs while keeping broad compatibility.
-  - File: `Keycloak/Keycloak.csproj`
-
 - [ ] **Align package versions**
   - `Microsoft.Extensions.*` is on 5.0.0 while IdentityModel is on 7.1.2.
   - Bump Extensions to 8.x (or align with the test project's `net8.0`) to reduce compatibility surprises.
@@ -116,20 +89,16 @@ Improvement backlog for future work. Items are roughly ordered by impact. Check 
 
 - [ ] **Add logging**
   - No `ILogger` usage anywhere.
-  - Log token acquisition failures, API errors (without secrets), and middleware rejection reasons (at debug level).
-  - Files: `Keycloak/Clients/KeycloakClient.cs`, `Keycloak/Helpers/KeycloakHttpHelper.cs`, `Keycloak/Middleware/TokenMiddleware.cs`
+  - Log token acquisition failures and API errors (without secrets).
+  - Files: `Keycloak/Clients/KeycloakClient.cs`, `Keycloak/Helpers/KeycloakHttpHelper.cs`
 
 ---
 
 ## Testing
 
 - [ ] **`KeycloakClient` token acquisition/refresh tests**
-  - Use `HttpMessageHandler` fakes to test token fetch, cache reuse, and refresh on expiry.
-  - File: `Keycloak.Test/` (new test class)
-
-- [ ] **Full middleware pipeline tests**
-  - Test 401 vs 200 paths through the actual middleware pipeline, not just `BuildValidationParameters`.
-  - File: `Keycloak.Test/TokenMiddlewareTest.cs`
+  - Partially covered by `KeycloakClientTest` (concurrency, cache reuse, refresh on expiry).
+  - File: `Keycloak.Test/KeycloakClientTest.cs`
 
 - [ ] **`AddKeycloak` DI registration smoke test**
   - Verify services resolve correctly from a `ServiceCollection`.
@@ -143,25 +112,10 @@ Improvement backlog for future work. Items are roughly ordered by impact. Check 
 
 ## Smaller cleanups
 
-- [ ] **Remove duplicate middleware extension**
-  - `UseTokenMiddleware` and `UseKeycloakTokenValidation` are identical.
-  - Keep one public name; mark the other `[Obsolete]`.
-  - File: `Keycloak/Middleware/TokenMiddleware.cs`
-
 - [ ] **Clean up `EventQuery` JSON attributes**
   - `[JsonProperty]` attributes are misleading if the class is only used for query-string building.
   - Use plain properties or a dedicated query builder.
   - File: `Keycloak/Entities/Realm/EventQuery.cs`
-
-- [ ] **Consolidate legacy `TokenValidator` helpers**
-  - `CheckIssuer(Payload, ...)` and similar methods overlap with the IdentityModel path.
-  - Consolidate or mark as internal if only used by tests.
-  - File: `Keycloak/Validators/TokenValidator.cs`
-
-- [ ] **Document `ValidateClientId` / `azp` vs `aud`**
-  - `ValidateClientId` checks the `azp` claim, which is correct for Keycloak client tokens.
-  - Document when `aud` validation may be needed instead for resource/API tokens.
-  - File: `README.md`
 
 ---
 
@@ -169,20 +123,23 @@ Improvement backlog for future work. Items are roughly ordered by impact. Check 
 
 If picking this up with limited time, start here:
 
-1. Thread-safe token refresh
-2. Unified expiry/skew logic in `KeycloakClient`
-3. `CancellationToken` support
-4. Middleware sets `HttpContext.User`
-5. JWKS retry on key rotation
+1. `CancellationToken` support
+2. Configurable HTTP timeouts and resilience
+3. `AddKeycloak` overloads
+4. `AddKeycloakAuth()` combined registration helper
 
 ---
 
 ## Already done (recent refactors)
 
+- [x] Removed legacy custom token middleware and duplicate JWT validation helpers
+- [x] Unified token expiry checking (`expires_in` + JWT `exp`, shared `ServerSkew`, IdentityModel parsing)
+- [x] `AddKeycloakAuthentication()` / `UseKeycloakAuthentication()` JWT bearer integration (net8.0+)
+- [x] Thread-safe token refresh in `KeycloakClient` (`SemaphoreSlim` with double-checked locking)
+- [x] Multi-target `netstandard2.0` + `net8.0`
 - [x] `IHttpClientFactory` integration for DI path
 - [x] Static services replaced with DI interfaces (`IUserService`, `IKeyService`, `IRealmService`)
 - [x] Typed exceptions instead of returning `null` (`KeycloakApiException`, etc.)
-- [x] IdentityModel-based JWT validation in middleware
-- [x] Configurable `ServerSkew`, `RealmKeysCacheSeconds`, `ValidateClientId`
+- [x] Configurable `ServerSkew`, `ValidateClientId`
 - [x] `HttpClient` no longer exposed on `IKeycloakClient`
 - [x] Keycloak 17+ URL paths (no `/auth` prefix)

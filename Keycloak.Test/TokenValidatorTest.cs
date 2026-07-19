@@ -1,192 +1,78 @@
-﻿using Keycloak.Constants.Enums;
-using Keycloak.Entities;
-using Keycloak.Entities.Keys;
-using Keycloak.Validators;
+﻿using Keycloak.Validators;
 using System;
-using System.Collections.Generic;
 using Xunit;
 
 namespace Keycloak.Test
 {
     public class TokenValidatorTest
     {
-        private const string SampleToken =
-            "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJFUV94VHRfYjVNUzUyWmRCT3NwS2t5S3RSanRKbjctNHFtVmR6c0ZBSl9BIn0.eyJleHAiOjE2MzA4NzY5NzAsImlhdCI6MTYzMDg3NjY3MCwiYXV0aF90aW1lIjoxNjMwODc2NjcwLCJqdGkiOiJjN2NiMmQxNy1iNmFjLTQwNmEtOTJkNS0wNmFkNmI1YzE3ZTAiLCJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjgwODAvYXV0aC9yZWFsbXMvQmxvZyIsImF1ZCI6ImFjY291bnQiLCJzdWIiOiJlN2VlMGZmZS01ZGIxLTQwNjItOWQwNy05ODQyODA1YjFkNmMiLCJ0eXAiOiJCZWFyZXIiLCJhenAiOiJibG9nRkUiLCJub25jZSI6IjA4MGRkNjViLTRhYTctNGUzMS1hYWYzLWJlNjEyZWJkYmNmZCIsInNlc3Npb25fc3RhdGUiOiJmZDY2ZTU5ZC02M2I1LTRlM2EtYWYyYS0zNTc0ZGIwMTcxNDgiLCJhY3IiOiIxIiwiYWxsb3dlZC1vcmlnaW5zIjpbImh0dHA6Ly9sb2NhbGhvc3Q6MzAwMCJdLCJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsib2ZmbGluZV9hY2Nlc3MiLCJ1bWFfYXV0aG9yaXphdGlvbiIsImRlZmF1bHQtcm9sZXMtYmxvZyJdfSwicmVzb3VyY2VfYWNjZXNzIjp7ImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sInNjb3BlIjoib3BlbmlkIGVtYWlsIHByb2ZpbGUiLCJzaWQiOiJmZDY2ZTU5ZC02M2I1LTRlM2EtYWYyYS0zNTc0ZGIwMTcxNDgiLCJlbWFpbF92ZXJpZmllZCI6ZmFsc2UsIm5hbWUiOiJNYXR0aGV3IFVzc2hlciIsInByZWZlcnJlZF91c2VybmFtZSI6Im1hdHVzcyIsImdpdmVuX25hbWUiOiJNYXR0aGV3IiwiZmFtaWx5X25hbWUiOiJVc3NoZXIiLCJlbWFpbCI6Im11c3NoZXI5MEBnbWFpbC5jb20ifQ.rJ91d6-cj1fG-PTJSFn0I3tmaowvjJ-3pJyZL1PBnFRWHTTEPCa3bf9ifNIsjBkWwp30vty1U-0mTspEZZcSmG8WHqHj8dVnc8TrsdDsmFkpRlTIO3f3E8vI1xaIfx5hfvgMibo1yCTjVbNS48OStaWj2HTojQzEl3sinlBAfJSLEaYswBZ65xooaU5tOed-6NLghiPg-LkoNya7-V937AfmqzMmJbrjPNg2a6M0UavBfhrUoCQLM8DasKFC3UJ6tjZ1j1GEh6x713NY8Z71YKdBHM9Hd5yxm_b1o6PrZViN-k1I8Y-feS-ZVSKhMCX3HX_f1WUunEWbt4K4d6vVDQ";
-
-        private static RealmKeys CreateSampleRealmKeys(string keyId = "EQ_xTt_b5MS52ZdBOspKkyKtRjtJn7-4qmVdzsFAJ_A")
+        [Fact]
+        public void CheckFormat_AcceptsWellFormattedTokens()
         {
-            return new RealmKeys
-            {
-                Keys = new List<Key>
-                {
-                    new Key
-                    {
-                        KeyId = keyId,
-                        KeyType = "RSA",
-                        Algorithm = "RS256",
-                        Modulus = "2gwI-AjLH2lp7036yVxInnns0gxTxIDEdfWsbbhScZiQzX-Jqxsgnq0zde874uBFdANf1ufr9g0poMYp6EO6YJMQdUO0m2vDSswiqEW58FtMyjWD7iL7RdVQlitXuP4ab_wdlhP55cekyrdfgTyhRPHasbwRW2HfT3ZcA7M720oo3uP4X2a0YEsvIfa9XsXdTugzS4GjafbKTyf1U8HcKYdJJXgf0UU-RziXvio4HXd7hC1kSedgMusvT_0YKIWvmMCAIdsaZdgsF5iouU8ZvxrVx-guJlIgQ6d53lPfKJz-2KEcG-O_yIdmUre68kLdbtdeCbJdXnxT3_aPGDBNvw",
-                        Exponent = "AQAB",
-                    },
-                },
-            };
+            Assert.True(TokenValidator.CheckFormat("header.payload.signature"));
         }
 
         [Fact]
-        public void Should_Accept_Well_Formatted_Tokens()
+        public void CheckFormat_RejectsBadlyFormattedTokens()
         {
-            Assert.True(TokenValidator.CheckFormat("Blah.Blah.Blah"));
+            Assert.False(TokenValidator.CheckFormat("header.payload"));
         }
 
         [Fact]
-        public void Should_Reject_Badly_Formatted_Tokens()
+        public void IsAccessTokenValid_RejectsExpiredToken()
         {
-            Assert.False(TokenValidator.CheckFormat("Blah.Blah"));
+            var accessToken = CreateTestAccessToken(DateTimeOffset.UtcNow.AddHours(-1).ToUnixTimeSeconds());
+
+            Assert.False(TokenValidator.IsAccessTokenValid(accessToken));
         }
 
         [Fact]
-        public void Should_Reject_Incorrect_Client()
+        public void IsAccessTokenValid_AcceptsUnexpiredToken()
         {
-            var payload = new Payload { AuthorizingParty = "Blah" };
+            var accessToken = CreateTestAccessToken(DateTimeOffset.UtcNow.AddHours(1).ToUnixTimeSeconds());
 
-            Assert.False(TokenValidator.CheckClient(payload, "NotBlah"));
+            Assert.True(TokenValidator.IsAccessTokenValid(accessToken));
         }
 
         [Fact]
-        public void Should_Accept_Correct_Client()
+        public void IsAccessTokenValid_UsesUtc_AndRespectsServerSkew()
         {
-            var payload = new Payload { AuthorizingParty = "Blah" };
+            var accessToken = CreateTestAccessToken(DateTimeOffset.UtcNow.AddSeconds(-10).ToUnixTimeSeconds());
 
-            Assert.True(TokenValidator.CheckClient(payload, "Blah"));
+            Assert.False(TokenValidator.IsAccessTokenValid(accessToken, serverSkewSeconds: 0));
+            Assert.True(TokenValidator.IsAccessTokenValid(accessToken, serverSkewSeconds: 30));
         }
 
         [Fact]
-        public void Should_Reject_Incorrect_Issuer()
+        public void IsAccessTokenValid_ReturnsFalse_ForMalformedToken()
         {
-            var payload = new Payload { Issuer = "Blah" };
-
-            Assert.False(TokenValidator.CheckIssuer(payload, "NotBlah"));
+            Assert.False(TokenValidator.IsAccessTokenValid("not-a-jwt"));
         }
 
         [Fact]
-        public void Should_Accept_Valid_Issuer()
+        public void TryGetAccessTokenExpiry_ParsesJwtExpiry()
         {
-            var payload = new Payload { Issuer = "Blah" };
+            var expiryUnixSeconds = DateTimeOffset.UtcNow.AddHours(1).ToUnixTimeSeconds();
+            var accessToken = CreateTestAccessToken(expiryUnixSeconds);
 
-            Assert.True(TokenValidator.CheckIssuer(payload, "Blah"));
+            Assert.True(TokenValidator.TryGetAccessTokenExpiry(accessToken, out var expiry));
+            Assert.Equal(expiryUnixSeconds, expiry.ToUnixTimeSeconds());
         }
 
-        [Fact]
-        public void Should_Reject_Expired_Token()
+        private static string CreateTestAccessToken(long expiryUnixSeconds)
         {
-            var oneHourExpired = DateTimeOffset.UtcNow.AddHours(-1).ToUnixTimeSeconds();
+            var header = Base64UrlEncode("{}");
+            var payload = Base64UrlEncode($"{{\"exp\":{expiryUnixSeconds}}}");
 
-            Assert.False(TokenValidator.CheckExpiration(new Payload { Expiry = oneHourExpired }));
+            return $"{header}.{payload}.signature";
         }
 
-        [Fact]
-        public void Should_Accept_Unexpired_Token()
+        private static string Base64UrlEncode(string value)
         {
-            var validExpiry = DateTimeOffset.UtcNow.AddHours(1).ToUnixTimeSeconds();
-
-            Assert.True(TokenValidator.CheckExpiration(new Payload { Expiry = validExpiry }));
-        }
-
-        [Fact]
-        public void CheckExpiration_UsesUtc_AndRespectsServerSkew()
-        {
-            var justExpired = DateTimeOffset.UtcNow.AddSeconds(-10).ToUnixTimeSeconds();
-
-            Assert.False(TokenValidator.CheckExpiration(new Payload { Expiry = justExpired }, serverSkewSeconds: 0));
-            Assert.True(TokenValidator.CheckExpiration(new Payload { Expiry = justExpired }, serverSkewSeconds: 30));
-        }
-
-        [Fact]
-        public void ValidateToken_ReturnsExpired_ForExpiredTokenWithValidSignature()
-        {
-            var parameters = new TokenValidationParameters
-            {
-                Token = SampleToken,
-                Keys = CreateSampleRealmKeys(),
-                Issuer = "http://localhost:8080/auth/realms/Blog",
-            };
-
-            Assert.Equal(ValidationStatusCode.Expired, TokenValidator.ValidateToken(parameters));
-        }
-
-        [Fact]
-        public void ValidateToken_ReturnsMissingSigningKey_WhenKidDoesNotMatch()
-        {
-            var parameters = new TokenValidationParameters
-            {
-                Token = SampleToken,
-                Keys = CreateSampleRealmKeys("wrong-kid"),
-            };
-
-            Assert.Equal(ValidationStatusCode.MissingSigningKey, TokenValidator.ValidateToken(parameters));
-        }
-
-        [Fact]
-        public void ValidateToken_ReturnsIncorrectIssuer_WhenIssuerDoesNotMatch()
-        {
-            var parameters = new TokenValidationParameters
-            {
-                Token = SampleToken,
-                Keys = CreateSampleRealmKeys(),
-                Issuer = "https://wrong-issuer.example.com/realms/Blog",
-            };
-
-            Assert.Equal(ValidationStatusCode.IncorrectIssuer, TokenValidator.ValidateToken(parameters));
-        }
-
-        [Fact]
-        public void ValidateToken_ReturnsIncorrectClient_WhenAzpDoesNotMatch()
-        {
-            var parameters = new TokenValidationParameters
-            {
-                Token = SampleToken,
-                Keys = CreateSampleRealmKeys(),
-                Issuer = "http://localhost:8080/auth/realms/Blog",
-                Client = "wrong-client",
-            };
-
-            Assert.Equal(ValidationStatusCode.IncorrectClient, TokenValidator.ValidateToken(parameters));
-        }
-
-        [Fact]
-        public void ValidateToken_ReturnsInvalidWebOrigins_WhenOriginNotAllowed()
-        {
-            var parameters = new TokenValidationParameters
-            {
-                Token = SampleToken,
-                Keys = CreateSampleRealmKeys(),
-                WebOrigins = new[] { "https://not-allowed.example.com" },
-            };
-
-            Assert.Equal(ValidationStatusCode.InvalidWebOrigins, TokenValidator.ValidateToken(parameters));
-        }
-
-        [Fact]
-        public void ValidateToken_AcceptsAllowedWebOrigins()
-        {
-            var parameters = new TokenValidationParameters
-            {
-                Token = SampleToken,
-                Keys = CreateSampleRealmKeys(),
-                WebOrigins = new[] { "http://localhost:3000" },
-            };
-
-            Assert.Equal(ValidationStatusCode.Expired, TokenValidator.ValidateToken(parameters));
-        }
-
-        [Fact]
-        public void Jwt_DecodesAccessTokenPayload_WithRolesAndUsername()
-        {
-            var jwt = new Jwt(SampleToken);
-
-            Assert.Equal("blogFE", jwt.Payload.AuthorizingParty);
-            Assert.Equal("matuss", jwt.Payload.PreferredUsername);
-            Assert.NotNull(jwt.Payload.RealmAccess);
-            Assert.Contains("offline_access", jwt.Payload.RealmAccess.Roles);
+            return Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(value))
+                .TrimEnd('=')
+                .Replace('+', '-')
+                .Replace('/', '_');
         }
     }
 }

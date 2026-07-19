@@ -22,11 +22,6 @@ namespace Keycloak.Configuration
                 options.ServerSkew = serverSkew;
             }
 
-            if (TryParseInt(FirstNonEmpty(section["RealmKeysCacheSeconds"], configuration["RealmKeysCacheSeconds"]), out var cacheSeconds))
-            {
-                options.RealmKeysCacheSeconds = cacheSeconds;
-            }
-
             if (TryParseBool(FirstNonEmpty(section["ValidateClientId"], configuration["ValidateClientId"]), out var validateClientId))
             {
                 options.ValidateClientId = validateClientId;
