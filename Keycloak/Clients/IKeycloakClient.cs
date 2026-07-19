@@ -1,5 +1,6 @@
-﻿using System.Threading.Tasks;
-using System.Net.Http;
+﻿using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Keycloak
 {
@@ -9,6 +10,9 @@ namespace Keycloak
 
         string ServerUrl { get; }
 
-        Task<HttpResponseMessage> Send(HttpRequestMessage message, bool requiresAccessToken = true);
+        Task<HttpResponseMessage> Send(
+            HttpRequestMessage message,
+            bool requiresAccessToken = true,
+            CancellationToken cancellationToken = default);
     }
 }

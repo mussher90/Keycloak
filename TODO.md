@@ -6,10 +6,15 @@ Improvement backlog for future work. Items are roughly ordered by impact. Check 
 
 ## High impact
 
-- [ ] **Add `CancellationToken` support**
-  - No HTTP calls accept cancellation today.
-  - Add `CancellationToken cancellationToken = default` to `IKeycloakClient.Send`, service methods, and auth configuration where applicable.
-  - Files: `Keycloak/Clients/IKeycloakClient.cs`, `Keycloak/Clients/KeycloakClient.cs`, service interfaces/implementations
+- [ ] **Expand admin API surface**
+  - Currently covered: users (CRUD-ish), password reset, emails, sessions, events, keys.
+  - Common missing operations: get user by ID, search users, role/group management, client/realm configuration.
+  - Define scope explicitly in README — "admin user management" vs "full Keycloak admin SDK".
+
+- [ ] **Null-safe deserialization**
+  - `KeycloakHttpHelper.SendAndDeserializeAsync` can return `null` without a clear error.
+  - Throw `KeycloakApiException` when a successful response deserializes to null for non-nullable expected types.
+  - File: `Keycloak/Helpers/KeycloakHttpHelper.cs`
 
 ---
 
@@ -38,16 +43,6 @@ Improvement backlog for future work. Items are roughly ordered by impact. Check 
 - [ ] **Combine admin + auth registration**
   - Consider a single `AddKeycloakAuth()` helper that calls `AddKeycloak()` and `AddKeycloakAuthentication()`.
   - Files: `Keycloak/Extensions/ServiceCollectionExtensions.cs`, `README.md`
-
-- [ ] **Expand admin API surface**
-  - Currently covered: users (CRUD-ish), password reset, emails, sessions, events, keys.
-  - Common missing operations: get user by ID, search users, role/group management, client/realm configuration.
-  - Define scope explicitly in README — "admin user management" vs "full Keycloak admin SDK".
-
-- [ ] **Null-safe deserialization**
-  - `KeycloakHttpHelper.SendAndDeserializeAsync` can return `null` without a clear error.
-  - Throw `KeycloakApiException` when a successful response deserializes to null for non-nullable expected types.
-  - File: `Keycloak/Helpers/KeycloakHttpHelper.cs`
 
 ---
 
@@ -123,7 +118,7 @@ Improvement backlog for future work. Items are roughly ordered by impact. Check 
 
 If picking this up with limited time, start here:
 
-1. `CancellationToken` support
+1. Expand admin API surface
 2. Configurable HTTP timeouts and resilience
 3. `AddKeycloak` overloads
 4. `AddKeycloakAuth()` combined registration helper
@@ -132,6 +127,7 @@ If picking this up with limited time, start here:
 
 ## Already done (recent refactors)
 
+- [x] `CancellationToken` support across `IKeycloakClient`, services, and HTTP helpers
 - [x] Removed legacy custom token middleware and duplicate JWT validation helpers
 - [x] Unified token expiry checking (`expires_in` + JWT `exp`, shared `ServerSkew`, IdentityModel parsing)
 - [x] `AddKeycloakAuthentication()` / `UseKeycloakAuthentication()` JWT bearer integration (net8.0+)

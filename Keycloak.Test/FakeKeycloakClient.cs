@@ -1,6 +1,7 @@
 using System;
 using System.Net;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Keycloak.Test
@@ -22,10 +23,17 @@ namespace Keycloak.Test
 
         public bool LastRequiresAccessToken { get; private set; }
 
-        public Task<HttpResponseMessage> Send(HttpRequestMessage message, bool requiresAccessToken = true)
+        public CancellationToken LastCancellationToken { get; private set; }
+
+        public Task<HttpResponseMessage> Send(
+            HttpRequestMessage message,
+            bool requiresAccessToken = true,
+            CancellationToken cancellationToken = default)
         {
             LastRequest = message;
             LastRequiresAccessToken = requiresAccessToken;
+            LastCancellationToken = cancellationToken;
+            cancellationToken.ThrowIfCancellationRequested();
             return Task.FromResult(_handler(message));
         }
 

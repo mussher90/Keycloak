@@ -77,16 +77,19 @@ namespace Keycloak
 
         public string ServerUrl { get; }
 
-        public async Task<HttpResponseMessage> Send(HttpRequestMessage message, bool requiresAccessToken = true)
+        public async Task<HttpResponseMessage> Send(
+            HttpRequestMessage message,
+            bool requiresAccessToken = true,
+            CancellationToken cancellationToken = default)
         {
             if (requiresAccessToken)
             {
-                await SetToken().ConfigureAwait(false);
+                await SetToken(cancellationToken).ConfigureAwait(false);
 
                 message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _token.AccessToken);
             }
 
-            return await _httpClient.SendAsync(message).ConfigureAwait(false);
+            return await _httpClient.SendAsync(message, cancellationToken).ConfigureAwait(false);
         }
 
         private bool ValidToken()
@@ -133,14 +136,14 @@ namespace Keycloak
             return expiry.AddSeconds(_serverSkew);
         }
 
-        private async Task SetToken()
+        private async Task SetToken(CancellationToken cancellationToken)
         {
             if (ValidToken())
             {
                 return;
             }
 
-            await _tokenLock.WaitAsync().ConfigureAwait(false);
+            await _tokenLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
                 if (ValidToken())
@@ -166,9 +169,9 @@ namespace Keycloak
                     RequestUri = new Uri(apiEndpoint, UriKind.Relative),
                 };
 
-                var response = await Send(message, false).ConfigureAwait(false);
+                var response = await Send(message, requiresAccessToken: false, cancellationToken).ConfigureAwait(false);
 
-                var tokenBody = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                var tokenBody = await ReadContentAsStringAsync(response.Content, cancellationToken).ConfigureAwait(false);
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -203,6 +206,18 @@ namespace Keycloak
         private static string NormalizeServerUrl(string serverUrl)
         {
             return serverUrl.TrimEnd('/') + "/";
+        }
+
+        private static async Task<string> ReadContentAsStringAsync(
+            HttpContent content,
+            CancellationToken cancellationToken)
+        {
+#if NET8_0_OR_GREATER
+            return await content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+#else
+            cancellationToken.ThrowIfCancellationRequested();
+            return await content.ReadAsStringAsync().ConfigureAwait(false);
+#endif
         }
     }
 }

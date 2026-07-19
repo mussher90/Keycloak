@@ -1,7 +1,7 @@
 using Newtonsoft.Json;
-using System;
 using System.Linq;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Keycloak.Helpers
@@ -11,12 +11,13 @@ namespace Keycloak.Helpers
         public static async Task<T> SendAndDeserializeAsync<T>(
             IKeycloakClient client,
             HttpRequestMessage request,
-            bool requiresAccessToken = true)
+            bool requiresAccessToken = true,
+            CancellationToken cancellationToken = default)
         {
             using (request)
-            using (var response = await client.Send(request, requiresAccessToken).ConfigureAwait(false))
+            using (var response = await client.Send(request, requiresAccessToken, cancellationToken).ConfigureAwait(false))
             {
-                var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                var body = await ReadContentAsStringAsync(response.Content, cancellationToken).ConfigureAwait(false);
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -30,14 +31,15 @@ namespace Keycloak.Helpers
         public static async Task SendAsync(
             IKeycloakClient client,
             HttpRequestMessage request,
-            bool requiresAccessToken = true)
+            bool requiresAccessToken = true,
+            CancellationToken cancellationToken = default)
         {
             using (request)
-            using (var response = await client.Send(request, requiresAccessToken).ConfigureAwait(false))
+            using (var response = await client.Send(request, requiresAccessToken, cancellationToken).ConfigureAwait(false))
             {
                 if (!response.IsSuccessStatusCode)
                 {
-                    var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                    var body = await ReadContentAsStringAsync(response.Content, cancellationToken).ConfigureAwait(false);
                     throw new KeycloakApiException(response.StatusCode, body, request.RequestUri);
                 }
             }
@@ -46,14 +48,15 @@ namespace Keycloak.Helpers
         public static async Task<string> SendAndGetCreatedResourceIdAsync(
             IKeycloakClient client,
             HttpRequestMessage request,
-            bool requiresAccessToken = true)
+            bool requiresAccessToken = true,
+            CancellationToken cancellationToken = default)
         {
             using (request)
-            using (var response = await client.Send(request, requiresAccessToken).ConfigureAwait(false))
+            using (var response = await client.Send(request, requiresAccessToken, cancellationToken).ConfigureAwait(false))
             {
                 if (!response.IsSuccessStatusCode)
                 {
-                    var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                    var body = await ReadContentAsStringAsync(response.Content, cancellationToken).ConfigureAwait(false);
                     throw new KeycloakApiException(response.StatusCode, body, request.RequestUri);
                 }
 
@@ -67,6 +70,18 @@ namespace Keycloak.Helpers
 
                 return response.Headers.Location.Segments.Last();
             }
+        }
+
+        private static async Task<string> ReadContentAsStringAsync(
+            HttpContent content,
+            CancellationToken cancellationToken)
+        {
+#if NET8_0_OR_GREATER
+            return await content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+#else
+            cancellationToken.ThrowIfCancellationRequested();
+            return await content.ReadAsStringAsync().ConfigureAwait(false);
+#endif
         }
     }
 }

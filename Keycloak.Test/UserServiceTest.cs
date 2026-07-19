@@ -1,9 +1,11 @@
 using Keycloak.Constants.Enums;
 using Keycloak.Entities.Users;
 using Keycloak.Services.Users;
+using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -48,6 +50,19 @@ namespace Keycloak.Test
 
             Assert.Equal(HttpMethod.Delete, client.LastRequest.Method);
             Assert.Equal("admin/realms/test-realm/users/user-123", client.LastRequest.RequestUri.ToString());
+        }
+
+        [Fact]
+        public async Task DeleteUserAsync_PropagatesCancellationToken()
+        {
+            using var cancellationTokenSource = new CancellationTokenSource();
+            cancellationTokenSource.Cancel();
+
+            var client = new FakeKeycloakClient(_ => new HttpResponseMessage(HttpStatusCode.NoContent));
+            var service = new UserService(client);
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                service.DeleteUserAsync("user-123", cancellationTokenSource.Token));
         }
 
         [Fact]

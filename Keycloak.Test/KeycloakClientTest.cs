@@ -98,6 +98,24 @@ namespace Keycloak.Test
             Assert.Equal(1, tokenRequestCount);
         }
 
+        [Fact]
+        public async Task Send_ThrowsOperationCanceledException_WhenCancelled()
+        {
+            using var cancellationTokenSource = new CancellationTokenSource();
+            cancellationTokenSource.Cancel();
+
+            var client = CreateClient((_, cancellationToken) =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return JsonResponse(HttpStatusCode.OK, "{}");
+            });
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                client.Send(
+                    new HttpRequestMessage(HttpMethod.Get, "admin/realms/test-realm/users"),
+                    cancellationToken: cancellationTokenSource.Token));
+        }
+
         private static KeycloakClient CreateClient(Func<HttpRequestMessage, CancellationToken, HttpResponseMessage> handler)
         {
             var httpClient = new HttpClient(new FakeHttpMessageHandler(handler))
