@@ -178,48 +178,6 @@ It populates `HttpContext.User` so downstream code can use `[Authorize]`, polici
 
 Requires `AddKeycloak()` to be registered first.
 
-## Publishing to NuGet (Trusted Publishing)
-
-Package ID: `Keycloak.AdminClient`
-
-Publishing uses [NuGet Trusted Publishing](https://learn.microsoft.com/en-us/nuget/nuget-org/trusted-publishing) via the `Publish NuGet` GitHub Actions workflow.
-
-### One-time nuget.org setup
-
-1. Sign in to [nuget.org](https://www.nuget.org/) as **MattUssher** (your profile username).
-2. Open **Account → Trusted Publishing → Add policy**.
-3. Use these values exactly:
-
-| Field | Value |
-|-------|--------|
-| Policy / package owner | **MattUssher** (individual account that will own `Keycloak.AdminClient`) |
-| GitHub repository owner | `mussher90` |
-| GitHub repository | `Keycloak` |
-| Workflow file | `publish-nuget.yml` |
-| Environment | `prod` |
-
-Important:
-- **Workflow file** is the YAML filename only — not the workflow display name `Publish NuGet`.
-- **Environment** must match the GitHub Actions environment used by the publish job (`prod`).
-- **`user` in the workflow** must be the NuGet username of the person who **created** the policy (`MattUssher`), not an organization name.
-- If the repo is private, the policy starts in a 7-day trial. Re-activate it on nuget.org if that window expired before the first successful login.
-
-### One-time GitHub setup
-
-1. Create an Actions environment named **`prod`**:
-   - GitHub repo → **Settings → Environments → New environment** → name it `prod`
-2. Add a repository secret:
-
-| Secret | Value |
-|--------|--------|
-| `NUGET_USER` | `MattUssher` |
-
-Do **not** add a long-lived `NUGET_API_KEY` when using Trusted Publishing.
-
-### Publish
-
-Run **Actions → Publish NuGet → Run workflow**, or publish a GitHub release.
-
 ## Testing
 
 ```bash
