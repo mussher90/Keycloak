@@ -35,7 +35,28 @@ jobs:
           user: ${{ secrets.NUGET_USER }}
 
       - name: Push to NuGet.org
-        run: dotnet nuget push ./artifacts/*.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{ steps.login.outputs.NUGET_API_KEY }} --skip-duplicate
+        id: nuget_push
+        shell: bash
+        run: |
+          set -o pipefail
+          output=$(dotnet nuget push ./artifacts/*.nupkg \
+            --source https://api.nuget.org/v3/index.json \
+            --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" \
+            --skip-duplicate 2>&1) || exit_code=$?
+
+          echo "$output"
+
+          if echo "$output" | grep -qiE "already exists|409|Conflict"; then
+            echo "package_pushed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "${exit_code:-0}" -ne 0 ]; then
+            exit "${exit_code}"
+          fi
+
+          echo "package_pushed=true" >> "$GITHUB_OUTPUT"
 
       - name: Push symbols
+        if: steps.nuget_push.outputs.package_pushed == 'true'
         run: dotnet nuget push ./artifacts/*.snupkg --source https://api.nuget.org/v3/index.json --api-key ${{ steps.login.outputs.NUGET_API_KEY }} --skip-duplicate
