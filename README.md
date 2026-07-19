@@ -196,16 +196,19 @@ Publishing uses [NuGet Trusted Publishing](https://learn.microsoft.com/en-us/nug
 | GitHub repository owner | `mussher90` |
 | GitHub repository | `Keycloak` |
 | Workflow file | `publish-nuget.yml` |
-| Environment | *(leave empty)* |
+| Environment | `prod` |
 
 Important:
 - **Workflow file** is the YAML filename only — not the workflow display name `Publish NuGet`.
+- **Environment** must match the GitHub Actions environment used by the publish job (`prod`).
 - **`user` in the workflow** must be the NuGet username of the person who **created** the policy (`MattUssher`), not an organization name.
 - If the repo is private, the policy starts in a 7-day trial. Re-activate it on nuget.org if that window expired before the first successful login.
 
 ### One-time GitHub setup
 
-Add a repository secret:
+1. Create an Actions environment named **`prod`**:
+   - GitHub repo → **Settings → Environments → New environment** → name it `prod`
+2. Add a repository secret:
 
 | Secret | Value |
 |--------|--------|
